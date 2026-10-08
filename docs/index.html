@@ -57,7 +57,7 @@ a:hover{text-decoration-color:var(--accent)}
 :focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:4px}
 code{font-family:var(--mono);font-size:.86em;background:var(--bg-2);border:1px solid var(--line);
   border-radius:5px;padding:.08em .38em}
-pre{margin:0;padding:1rem 1.1rem;background:var(--bg-2);border:1px solid var(--line);border-radius:12px;
+pre{margin:0;padding:1rem 1.1rem;overflow-x:auto;max-width:100%;background:var(--bg-2);border:1px solid var(--line);border-radius:12px;
   overflow-x:auto;font:.84rem/1.55 var(--mono)}
 pre code{background:none;border:0;padding:0;font-size:1em}
 h1,h2,h3{text-wrap:balance;margin:0}
@@ -211,12 +211,12 @@ section h2{font:600 clamp(1.7rem,3.4vw,2.4rem)/1.1 var(--display);letter-spacing
 .row[data-active]{border-color:var(--sp);box-shadow:0 0 0 1px var(--sp) inset}
 .row h3{font:600 1.05rem var(--display);letter-spacing:.02em}
 .row small{display:block;color:var(--dim);font-size:.78rem;margin-top:.15rem}
-.strip{display:flex;gap:.3rem;overflow-x:auto;padding-bottom:.2rem;scrollbar-width:thin}
+.strip{display:flex;gap:.3rem;min-width:0;overflow-x:auto;padding-bottom:.2rem;scrollbar-width:thin}
 .cell{display:grid;justify-items:center;gap:.25rem;min-width:4.4rem}
 .cell canvas{width:48px;height:48px;image-rendering:pixelated;background:color-mix(in srgb,var(--sp) 10%,var(--bg-2));border-radius:10px}
 .cell span{font:500 .62rem var(--mono);color:var(--mute);letter-spacing:.04em;white-space:nowrap}
 .cell.alt canvas{background:color-mix(in srgb,var(--sp) 22%,var(--bg-2))}
-@media (max-width:40rem){.row{grid-template-columns:1fr}}
+@media (max-width:40rem){.row{grid-template-columns:minmax(0,1fr)}}
 
 /* care */
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(15rem,1fr));gap:.9rem}
@@ -235,7 +235,7 @@ section h2{font:600 clamp(1.7rem,3.4vw,2.4rem)/1.1 var(--display);letter-spacing
 .timeline p{margin:0;color:var(--dim);font-size:.92rem;max-width:60ch}
 
 /* button & led */
-.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(18rem,1fr));gap:1.4rem}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(18rem,100%),1fr));gap:1.4rem}
 dl.gest{margin:0;display:grid;grid-template-columns:auto 1fr;gap:.6rem 1.1rem;align-items:baseline}
 dl.gest dt{font:600 .82rem var(--mono);white-space:nowrap;color:var(--fg)}
 dl.gest dd{margin:0;color:var(--dim);font-size:.92rem}
@@ -266,6 +266,16 @@ th{font:600 .72rem var(--mono);letter-spacing:.08em;text-transform:uppercase;col
 td code{white-space:nowrap}
 .scroll{overflow-x:auto}
 
+.author{margin-block:4.5rem 0}
+.author .box{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:1.4rem;padding:1.6rem 1.8rem;border-radius:20px;
+  border:1px solid var(--line);background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 14%,var(--panel)),var(--panel) 70%);min-width:0}
+.author canvas{width:64px;height:64px;image-rendering:pixelated;flex:none}
+.author h2{font:600 1.35rem/1.25 var(--display);margin:0 0 .35rem;text-wrap:balance}
+.author p{margin:0;color:var(--dim);max-width:52ch}
+.author .follow{display:flex;gap:.7rem;flex-wrap:wrap}
+.author .follow .btn{white-space:nowrap}
+@media (max-width:720px){.author .box{grid-template-columns:1fr}.author .follow{flex-direction:column;align-items:stretch}.author .follow .btn{text-align:center;white-space:normal}}
+@media (max-width:40rem){nav a[href^="https://adrianmb.dev"]{display:none}}
 footer{padding-block:2.2rem 3.5rem;border-top:1px solid var(--line);font-size:.84rem;color:var(--dim)}
 footer .wrap{display:grid;gap:.8rem}
 footer p{margin:0;max-width:70ch}
@@ -282,6 +292,7 @@ footer p{margin:0;max-width:70ch}
     <a href="#install" lang="es">Instalar</a><a href="#install" lang="en">Install</a>
     <a href="#inside" lang="es">Por dentro</a><a href="#inside" lang="en">Inside</a>
     <a href="https://github.com/Adrianmtzb/espgotchi">GitHub</a>
+    <a href="https://adrianmb.dev/">adrianmb.dev</a>
     <button id="lang" type="button" hidden>English</button>
   </nav>
 </header>
@@ -641,6 +652,24 @@ make monitor  <span lang="es" class="inl"># consola serie, escribe 'help'</span>
     </div>
   </div>
 </section>
+<section class="wrap author" id="author">
+  <div class="box">
+    <canvas id="authorMark" width="16" height="16" aria-hidden="true"></canvas>
+    <div>
+      <p class="eyebrow" lang="es">Quién hay detrás</p><p class="eyebrow" lang="en">Who is behind this</p>
+      <h2 lang="es">Hecho por Adrián. Si te gusta ESPgotchi, hay más.</h2>
+      <h2 lang="en">Made by Adrián. If you like ESPgotchi, there is more.</h2>
+      <p lang="es">Firmware para placas baratas, herramientas pequeñas y proyectos de software libre, con la misma manía por los detalles. Todo sale primero en adrianmb.dev.</p>
+      <p lang="en">Firmware for cheap boards, small tools and free-software projects, with the same obsession for detail. Everything lands first on adrianmb.dev.</p>
+    </div>
+    <div class="follow">
+      <a class="btn" href="https://adrianmb.dev/" lang="es">Seguir en adrianmb.dev</a>
+      <a class="btn" href="https://adrianmb.dev/" lang="en">Follow on adrianmb.dev</a>
+      <a class="btn ghost" href="https://github.com/Adrianmtzb" lang="es">Más repos</a>
+      <a class="btn ghost" href="https://github.com/Adrianmtzb" lang="en">More repos</a>
+    </div>
+  </div>
+</section>
 </main>
 
 <footer>
@@ -966,6 +995,7 @@ function buildSpecies() {
   }
   // wordmark icon
   const mk = document.getElementById('mark').getContext('2d'); drawSprite(mk, 'heart', 0, 0, 1);
+  drawSprite(document.getElementById('authorMark').getContext('2d'), 'heart', 0, 0, 1);
 }
 
 fetch('sprites.json').then(r => r.json()).then(s => {
