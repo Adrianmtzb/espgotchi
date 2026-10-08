@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<title>ESPgotchi</title>
+<!-- Search engines read this, not visitors: it cannot follow the language toggle,
+     so it carries both languages on one line. -->
+<meta name="description" content="Mascota virtual libre para la Waveshare ESP32-C6-LCD-1.47: seis especies en pixel-art (dos de edición especial de Halloween), evoluciones, web servida por el propio chip. Se instala desde el navegador. — Open-source virtual pet for the Waveshare ESP32-C6-LCD-1.47: six pixel-art species (two of them a Halloween special edition), evolutions, a web panel served by the chip itself. Installs from your browser.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'><rect width='16' height='16' rx='3' fill='%230b0d16'/><rect x='4' y='3' width='8' height='7' fill='%23ff5c8a'/><rect x='3' y='5' width='10' height='6' fill='%23ff5c8a'/><rect x='5' y='6' width='2' height='2' fill='%230b0d16'/><rect x='9' y='6' width='2' height='2' fill='%230b0d16'/><rect x='5' y='11' width='6' height='2' fill='%23ff5c8a'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@400;600&display=swap">
+<script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"></script>
+<style>
+/* Layout: a dark workbench. One glowing object (the board, running a live pet) sits at the
+   top; everything below is set like a well-printed manual. The species the visitor picks
+   recolors the accent tokens for the whole page. */
+:root{
+  --bg:#0b0d16; --bg-2:#111424; --panel:#161a2c; --line:#262b42;
+  --fg:#f1efe8; --dim:#9aa0b8; --mute:#636a86;
+  --accent:#ff5c8a; --accent-ink:#1a1a2e;
+  --room:#fff1f3; --room-2:#ffd6e0;
+  --warn:#ffb454; --ok:#4fd27a;
+  --display:"Pixelify Sans","Press Start 2P",ui-monospace,monospace;
+  --body:"Instrument Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+    --bg:#f6f4ee; --bg-2:#efece3; --panel:#ffffff; --line:#dcd8cc;
+    --fg:#17192a; --dim:#5b6078; --mute:#8b90a6; --warn:#8a4f00; --ok:#1f8a4a;
+    color-scheme:light;
+  }
+}
+:root[data-theme="light"]{
+  --bg:#f6f4ee; --bg-2:#efece3; --panel:#ffffff; --line:#dcd8cc;
+  --fg:#17192a; --dim:#5b6078; --mute:#8b90a6; --warn:#8a4f00; --ok:#1f8a4a;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 var(--body);
+  -webkit-font-smoothing:antialiased;overflow-x:hidden}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+
+/* Two languages in the markup; CSS hides the one not in use so prose keeps its
+   inline <code>, <b> and <a>. */
+html[lang=es] [lang=en], html[lang=en] [lang=es]{display:none}
+html[lang=es] [lang=en].inl, html[lang=en] [lang=es].inl{display:none}
+
+.wrap{max-width:68rem;margin:0 auto;padding-inline:clamp(16px,4vw,2.5rem)}
+a{color:inherit;text-decoration-color:var(--mute);text-underline-offset:3px}
+a:hover{text-decoration-color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:4px}
+code{font-family:var(--mono);font-size:.86em;background:var(--bg-2);border:1px solid var(--line);
+  border-radius:5px;padding:.08em .38em}
+pre{margin:0;padding:1rem 1.1rem;background:var(--bg-2);border:1px solid var(--line);border-radius:12px;
+  overflow-x:auto;font:.84rem/1.55 var(--mono)}
+pre code{background:none;border:0;padding:0;font-size:1em}
+h1,h2,h3{text-wrap:balance;margin:0}
+.eyebrow{font:600 .72rem/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+
+/* ---- top bar ---- */
+.top{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding-block:1.1rem}
+.mark{display:flex;align-items:center;gap:.6rem;font:600 1.15rem/1 var(--display);letter-spacing:.02em}
+.mark canvas{width:28px;height:28px;image-rendering:pixelated}
+.top nav{display:flex;gap:.2rem;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.top nav a{font-size:.86rem;color:var(--dim);text-decoration:none;padding:.4rem .7rem;border-radius:999px}
+.top nav a:hover{color:var(--fg);background:var(--bg-2)}
+#lang{font:inherit;font-size:.78rem;letter-spacing:.04em;cursor:pointer;color:var(--fg);
+  padding:.36rem .8rem;border:1px solid var(--line);border-radius:999px;background:var(--panel)}
+#lang:hover{border-color:var(--accent)}
+
+/* ---- hero ---- */
+.hero{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:clamp(1.5rem,4vw,4rem);
+  align-items:center;padding-block:clamp(1.5rem,5vw,4rem) clamp(2rem,6vw,5rem)}
+@media (max-width:56rem){.hero{grid-template-columns:1fr}}
+.hero h1{font:600 clamp(2.6rem,7.5vw,5rem)/.95 var(--display);letter-spacing:.01em}
+.hero h1 em{font-style:normal;color:var(--accent)}
+.lede{margin:1.2rem 0 0;font-size:clamp(1.05rem,1.6vw,1.22rem);color:var(--dim);max-width:34em}
+.lede b{color:var(--fg);font-weight:600}
+.cta{display:flex;align-items:center;gap:1.1rem;flex-wrap:wrap;margin-top:1.9rem}
+esp-web-install-button{--esp-tools-button-color:var(--fg)}
+button[slot=activate],.btn{font:600 1rem var(--body);cursor:pointer;padding:.85rem 1.5rem;border:0;border-radius:12px;
+  background:var(--accent);color:var(--accent-ink);text-decoration:none;display:inline-block;
+  box-shadow:0 0 0 1px rgba(0,0,0,.08),0 10px 30px -12px var(--accent);transition:transform .15s}
+button[slot=activate]:hover,.btn:hover{transform:translateY(-1px)}
+.btn.ghost{background:transparent;color:var(--fg);box-shadow:inset 0 0 0 1px var(--line)}
+.btn.ghost:hover{box-shadow:inset 0 0 0 1px var(--accent)}
+.req{font-size:.82rem;color:var(--dim);max-width:22ch;line-height:1.45}
+.req b{display:block;color:var(--fg);font:600 .82rem var(--mono)}
+.nope{display:none;margin-top:1.2rem;padding:.75rem 1rem;font-size:.88rem;color:var(--warn);
+  border:1px solid var(--line);border-radius:12px;background:var(--bg-2)}
+.unsupported .nope{display:block}
+.unsupported esp-web-install-button{display:none}
+.specs{display:flex;gap:1.6rem;flex-wrap:wrap;margin-top:2rem;padding-top:1.4rem;border-top:1px solid var(--line)}
+.specs div{font-size:.8rem;color:var(--dim)}
+.specs b{display:block;font:600 1.05rem var(--mono);color:var(--fg);letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+
+/* ---- the board ---- */
+.stage{display:grid;gap:1rem;justify-items:center}
+.board{position:relative;width:min(100%,30rem);aspect-ratio:1.27;border-radius:22px;
+  background:linear-gradient(160deg,#1c2238,#0d1020 60%,#0a0c18);
+  box-shadow:0 40px 80px -30px rgba(0,0,0,.75),inset 0 1px 0 rgba(255,255,255,.08),0 0 0 1px #222a44;
+  padding:5.5% 5% 5%}
+.board::after{content:"";position:absolute;inset:-18%;z-index:-1;border-radius:50%;
+  background:radial-gradient(closest-side,color-mix(in srgb,var(--accent) 30%,transparent),transparent 70%);
+  filter:blur(10px);opacity:.9;transition:background .6s}
+.screen{position:relative;width:100%;aspect-ratio:320/172;border-radius:8px;overflow:hidden;background:#000;
+  box-shadow:inset 0 0 0 2px #05060c,0 0 0 3px #1a1f33,0 0 0 4px #0a0c18}
+.screen canvas{display:block;width:100%;height:100%;image-rendering:pixelated}
+.screen::before{content:"";position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(0deg,rgba(0,0,0,.09) 0 1px,transparent 1px 3px);mix-blend-mode:multiply}
+.pcb{display:flex;align-items:center;justify-content:space-between;margin-top:5%;padding-inline:2%}
+.pcb .label{font:600 .55rem var(--mono);letter-spacing:.1em;color:#5b6486;text-transform:uppercase}
+.led{width:12px;height:12px;border-radius:50%;background:var(--led,#4fd27a);box-shadow:0 0 10px 2px var(--led,#4fd27a);transition:background .25s,box-shadow .25s}
+.keys{display:flex;gap:1.3rem}
+.key{display:grid;justify-items:center;gap:.3rem}
+.key button{width:34px;height:34px;border-radius:50%;border:0;cursor:pointer;background:#2a3050;
+  box-shadow:inset 0 -3px 0 #161a2c,0 2px 0 #06070d;transition:transform .08s}
+.key button:active{transform:translateY(2px);box-shadow:inset 0 -1px 0 #161a2c}
+.key button[disabled]{cursor:default;opacity:.55}
+.usb{width:46px;height:14px;border-radius:5px;background:#3b4262;box-shadow:inset 0 0 0 2px #1a1f33}
+.actions{display:flex;gap:.45rem;flex-wrap:wrap;justify-content:center}
+.actions button{font:500 .84rem var(--body);cursor:pointer;padding:.5rem .85rem;border-radius:999px;
+  border:1px solid var(--line);background:var(--panel);color:var(--fg)}
+.actions button:hover{border-color:var(--accent)}
+.actions button:active{transform:translateY(1px)}
+.hint{font-size:.8rem;color:var(--mute);text-align:center;max-width:36ch}
+#log{font:.78rem/1.5 var(--mono);color:var(--dim);min-height:1.2em;text-align:center}
+
+/* species tabs */
+.species{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:.5rem;width:min(100%,34rem)}
+.species button{position:relative}
+.season{display:inline-block;font:700 .6rem/1 var(--mono);letter-spacing:.06em;text-transform:uppercase;padding:.25rem .5rem;border-radius:999px;background:#ff8c1a;color:#1a0f1f;vertical-align:middle}
+.species button .season{position:absolute;top:-.45rem;right:-.25rem;padding:.2rem .35rem;font-size:.5rem}
+.row h3 .season{margin-left:.5rem}
+@media (max-width:40rem){.species{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.species button{display:grid;justify-items:center;gap:.35rem;padding:.7rem .4rem .6rem;border-radius:14px;cursor:pointer;
+  border:1px solid var(--line);background:var(--panel);color:var(--dim);font:500 .8rem var(--body)}
+.species button canvas{width:48px;height:48px;image-rendering:pixelated}
+.species button[aria-pressed=true]{border-color:var(--sp);color:var(--fg);background:color-mix(in srgb,var(--sp) 12%,var(--panel))}
+@media (max-width:26rem){.species button canvas{width:36px;height:36px}.species button .season{display:none}}
+
+/* ---- companion web: phone mockup mirroring the embedded panel ---- */
+.web{display:grid;grid-template-columns:minmax(0,19rem) minmax(0,1fr);gap:clamp(1.5rem,4vw,3.5rem);align-items:start}
+@media (max-width:50rem){.web{grid-template-columns:1fr;justify-items:center} .web .web-copy{justify-self:stretch}}
+.phone{position:relative;width:min(100%,19rem);aspect-ratio:9/19;border-radius:2.4rem;padding:.55rem;
+  background:linear-gradient(160deg,#2a3050,#0d1020 55%,#0a0c18);
+  box-shadow:0 40px 80px -30px rgba(0,0,0,.7),inset 0 1px 0 rgba(255,255,255,.08),0 0 0 1px #222a44}
+.phone::before{content:"";position:absolute;top:.55rem;left:50%;transform:translateX(-50%);width:34%;height:1.3rem;
+  border-radius:0 0 .9rem .9rem;background:#0a0c18;z-index:2}
+.phone-screen{height:100%;border-radius:1.9rem;overflow:hidden;background:var(--bg);display:flex;flex-direction:column;
+  gap:.45rem;padding:2rem .6rem .7rem;font-size:.62rem;line-height:1.3}
+.phone-screen>*{flex:none}
+.p-head{display:flex;align-items:center;justify-content:space-between;gap:.4rem;padding-inline:.15rem}
+.p-head b{font:600 .95rem/1 var(--body);display:flex;align-items:center;gap:.3rem}
+.p-head small{display:block;color:var(--dim);font-size:.58rem;margin-top:.15rem}
+.p-badge{font:600 .52rem var(--mono);padding:.2rem .5rem;border-radius:999px;background:var(--accent);color:var(--accent-ink);white-space:nowrap}
+.p-card{background:var(--panel);border:1px solid var(--line);border-radius:.9rem;padding:.5rem .55rem;min-width:0}
+.p-card h4{margin:0 0 .35rem;font:600 .58rem var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--mute)}
+.p-card canvas{display:block;width:100%;aspect-ratio:320/172;border-radius:.5rem;image-rendering:pixelated;background:#000}
+.p-stats{display:grid;grid-template-columns:1fr 1fr;gap:.3rem .5rem;margin-top:.45rem}
+.p-stat label{display:flex;justify-content:space-between;color:var(--dim);font-size:.55rem}
+.p-stat label b{color:var(--fg);font:600 .55rem var(--mono);font-variant-numeric:tabular-nums}
+.p-stat .p-bar{height:4px;border-radius:2px;background:color-mix(in srgb,var(--fg) 10%,transparent);overflow:hidden;margin-top:.12rem}
+.p-stat .p-bar i{display:block;height:100%;width:50%;border-radius:2px;background:var(--c,var(--accent));transition:width .3s}
+.p-actions{display:grid;grid-template-columns:repeat(4,1fr);gap:.3rem}
+.p-actions button{font:500 .55rem var(--body);cursor:pointer;padding:.35rem .15rem;border-radius:.5rem;border:1px solid var(--line);
+  background:var(--bg-2);color:var(--fg);display:grid;justify-items:center;gap:.1rem;min-width:0}
+.p-actions button span{font-size:.8rem;line-height:1}
+.p-actions button:hover{border-color:var(--accent)}
+.p-actions button.danger{color:var(--warn)}
+.p-log{margin:0;padding:0;list-style:none;color:var(--dim);display:grid;gap:.15rem}
+.p-log li{display:flex;gap:.4rem;font-size:.55rem}
+.p-log li time{font:.5rem var(--mono);color:var(--mute);flex:none}
+.p-settings{display:grid;gap:.3rem}
+.p-field{display:flex;gap:.3rem;align-items:center}
+.p-field span{flex:1;height:1.1rem;border-radius:.35rem;border:1px solid var(--line);background:var(--bg-2);color:var(--mute);
+  padding:.1rem .35rem;font-size:.52rem;line-height:.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.p-field em{font-style:normal;font-size:.52rem;padding:.15rem .4rem;border-radius:.35rem;background:var(--accent);color:var(--accent-ink);flex:none}
+.p-range{height:3px;border-radius:2px;background:color-mix(in srgb,var(--fg) 12%,transparent);position:relative;flex:1}
+.p-range::after{content:"";position:absolute;left:0;top:0;height:100%;width:78%;border-radius:2px;background:var(--accent)}
+.p-seg{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border-radius:.35rem;overflow:hidden;flex:1}
+.p-seg i{font-style:normal;font-size:.48rem;text-align:center;padding:.15rem 0;background:var(--bg-2);color:var(--mute)}
+.p-seg i.on{background:var(--accent);color:var(--accent-ink)}
+.web-copy ul{margin:0;padding:0;list-style:none;display:grid;gap:.9rem}
+.web-copy li{display:grid;grid-template-columns:auto 1fr;gap:.8rem;align-items:start}
+.web-copy li i{font-style:normal;width:2rem;height:2rem;border-radius:.6rem;display:grid;place-items:center;
+  background:color-mix(in srgb,var(--accent) 14%,var(--panel));border:1px solid var(--line);font-size:1rem}
+.web-copy li b{display:block;font-weight:600}
+.web-copy li p{margin:.15rem 0 0;color:var(--dim);font-size:.92rem}
+.web-copy .fine{margin-top:1.5rem;padding-top:1rem;border-top:1px solid var(--line);font-size:.84rem;color:var(--dim);max-width:60ch}
+.web-copy .url{display:inline-flex;align-items:center;gap:.5rem;margin-top:1.4rem;padding:.6rem .9rem;border-radius:.8rem;
+  background:var(--bg-2);border:1px solid var(--line);font:600 .9rem var(--mono)}
+.web-copy .url i{width:.55rem;height:.55rem;border-radius:50%;background:var(--ok);box-shadow:0 0 8px var(--ok)}
+
+/* ---- sections ---- */
+section{padding-block:clamp(3rem,7vw,5.5rem);border-top:1px solid var(--line)}
+.sec-head{display:grid;gap:.6rem;max-width:40rem;margin-bottom:clamp(1.6rem,3vw,2.6rem)}
+section h2{font:600 clamp(1.7rem,3.4vw,2.4rem)/1.1 var(--display);letter-spacing:.01em}
+.sec-head p{margin:0;color:var(--dim);font-size:1.02rem}
+
+/* evolutions */
+.evo{display:grid;gap:.9rem}
+.row{display:grid;grid-template-columns:7.5rem minmax(0,1fr);gap:1rem;align-items:center;padding:1rem 1.1rem;
+  border:1px solid var(--line);border-radius:16px;background:var(--panel)}
+.row[data-active]{border-color:var(--sp);box-shadow:0 0 0 1px var(--sp) inset}
+.row h3{font:600 1.05rem var(--display);letter-spacing:.02em}
+.row small{display:block;color:var(--dim);font-size:.78rem;margin-top:.15rem}
+.strip{display:flex;gap:.3rem;overflow-x:auto;padding-bottom:.2rem;scrollbar-width:thin}
+.cell{display:grid;justify-items:center;gap:.25rem;min-width:4.4rem}
+.cell canvas{width:48px;height:48px;image-rendering:pixelated;background:color-mix(in srgb,var(--sp) 10%,var(--bg-2));border-radius:10px}
+.cell span{font:500 .62rem var(--mono);color:var(--mute);letter-spacing:.04em;white-space:nowrap}
+.cell.alt canvas{background:color-mix(in srgb,var(--sp) 22%,var(--bg-2))}
+@media (max-width:40rem){.row{grid-template-columns:1fr}}
+
+/* care */
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(15rem,1fr));gap:.9rem}
+.card{padding:1.15rem 1.2rem;border:1px solid var(--line);border-radius:16px;background:var(--panel);min-width:0}
+.card h3{font:600 1rem var(--body);display:flex;align-items:center;gap:.55rem}
+.card h3 .dot{width:10px;height:10px;border-radius:3px;background:var(--c,var(--accent))}
+.card p{margin:.45rem 0 0;color:var(--dim);font-size:.92rem}
+.card .num{font:600 .8rem var(--mono);color:var(--fg);font-variant-numeric:tabular-nums}
+.timeline{margin-top:1.6rem;padding:1.2rem 1.3rem;border-radius:16px;background:var(--bg-2);border:1px solid var(--line)}
+.timeline ol{display:grid;grid-template-columns:repeat(auto-fit,minmax(10rem,1fr));gap:1rem;margin:.9rem 0 0;padding:0;list-style:none}
+.timeline li{position:relative;padding-top:.9rem;border-top:2px solid var(--line)}
+.timeline li::before{content:"";position:absolute;top:-6px;left:0;width:10px;height:10px;border-radius:50%;background:var(--accent)}
+.timeline li:last-child::before{background:var(--mute)}
+.timeline b{display:block;font:600 .9rem var(--mono);font-variant-numeric:tabular-nums}
+.timeline span{color:var(--dim);font-size:.88rem}
+.timeline p{margin:0;color:var(--dim);font-size:.92rem;max-width:60ch}
+
+/* button & led */
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(18rem,1fr));gap:1.4rem}
+dl.gest{margin:0;display:grid;grid-template-columns:auto 1fr;gap:.6rem 1.1rem;align-items:baseline}
+dl.gest dt{font:600 .82rem var(--mono);white-space:nowrap;color:var(--fg)}
+dl.gest dd{margin:0;color:var(--dim);font-size:.92rem}
+@media (max-width:32rem){dl.gest{grid-template-columns:1fr;gap:.15rem} dl.gest dd{margin-bottom:.7rem}}
+.leds{display:grid;gap:.55rem;margin:0;padding:0;list-style:none}
+.leds li{display:flex;align-items:center;gap:.8rem;font-size:.92rem;color:var(--dim)}
+.leds i{width:14px;height:14px;border-radius:50%;flex:none;background:var(--c);box-shadow:0 0 10px 1px var(--c)}
+.leds i.blink{animation:blink 2s infinite}
+.leds i.fast{animation:blink .5s infinite}
+.leds i.rainbow{animation:hue 3s linear infinite;background:#f44;box-shadow:0 0 10px 1px #f44}
+@keyframes blink{0%,6%{opacity:1}7%,12%{opacity:.1}13%,18%{opacity:1}19%,100%{opacity:.12}}
+@keyframes hue{to{filter:hue-rotate(360deg)}}
+
+/* install steps */
+ol.steps{margin:0;padding:0;list-style:none;counter-reset:s;display:grid;gap:1rem}
+ol.steps li{counter-increment:s;position:relative;padding-left:2.9rem}
+ol.steps li::before{content:counter(s);position:absolute;left:0;top:.05rem;width:2rem;height:2rem;border-radius:50%;
+  display:grid;place-items:center;font:600 .85rem var(--mono);color:var(--accent-ink);background:var(--accent)}
+ol.steps strong{font-weight:600}
+ol.steps p{margin:.2rem 0 0;color:var(--dim);font-size:.92rem;max-width:58ch}
+
+/* inside */
+.flow{font:.8rem/1.6 var(--mono);color:var(--dim)}
+.flow b{color:var(--fg);font-weight:600}
+table{width:100%;border-collapse:collapse;font-size:.88rem}
+th,td{text-align:left;padding:.6rem .6rem;border-bottom:1px solid var(--line);vertical-align:top}
+th{font:600 .72rem var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--mute)}
+td code{white-space:nowrap}
+.scroll{overflow-x:auto}
+
+footer{padding-block:2.2rem 3.5rem;border-top:1px solid var(--line);font-size:.84rem;color:var(--dim)}
+footer .wrap{display:grid;gap:.8rem}
+footer p{margin:0;max-width:70ch}
+</style>
+</head>
+<body>
+
+<header class="wrap top">
+  <a class="mark" href="#" aria-label="ESPgotchi"><canvas id="mark" width="16" height="16"></canvas>ESPgotchi</a>
+  <nav>
+    <a href="#web" lang="es">Panel web</a><a href="#web" lang="en">Web panel</a>
+    <a href="#species" lang="es">Especies</a><a href="#species" lang="en">Species</a>
+    <a href="#care" lang="es">Cuidados</a><a href="#care" lang="en">Care</a>
+    <a href="#install" lang="es">Instalar</a><a href="#install" lang="en">Install</a>
+    <a href="#inside" lang="es">Por dentro</a><a href="#inside" lang="en">Inside</a>
+    <a href="https://github.com/Adrianmtzb/espgotchi">GitHub</a>
+    <button id="lang" type="button" hidden>English</button>
+  </nav>
+</header>
+
+<main>
+<div class="wrap hero">
+  <div>
+    <p class="eyebrow">Waveshare ESP32-C6-LCD-1.47 · open source · MIT</p>
+    <h1 style="margin-top:.8rem"><span lang="es">Una mascota que <em>vive</em> en 172 × 320 píxeles.</span><span lang="en">A pet that <em>lives</em> in 172 × 320 pixels.</span></h1>
+    <p class="lede" lang="es">Seis especies en pixel-art, cinco etapas de evolución y un carácter que depende de cómo
+      la cuides. Corre en una placa de <b>menos de 15 €</b> con un solo botón, y el propio chip sirve el panel
+      para cuidarla desde el móvil.</p>
+    <p class="lede" lang="en">Six pixel-art species, five evolution stages and a personality shaped by how you look
+      after it. Runs on a board that costs <b>under $15</b>, with a single button, and the chip itself serves the panel
+      you care for it from.</p>
+    <div class="cta">
+      <esp-web-install-button manifest="manifest.json">
+        <button slot="activate" type="button"><span lang="es">Instalar en la placa</span><span lang="en">Install on the board</span></button>
+        <span slot="unsupported"></span>
+        <span slot="not-allowed"></span>
+      </esp-web-install-button>
+      <a class="btn ghost" href="https://github.com/Adrianmtzb/espgotchi"><span lang="es">Ver el código</span><span lang="en">View the code</span></a>
+      <p class="req" lang="es"><b id="ver">v…</b>Chrome o Edge de escritorio, con la placa por USB. Nada pasa por un servidor.</p>
+      <p class="req" lang="en"><b id="ver-en">v…</b>Desktop Chrome or Edge, board plugged in over USB. Nothing goes through a server.</p>
+    </div>
+    <p class="nope" lang="es">Este navegador no tiene Web Serial. Abre la página en Chrome o Edge de escritorio, o compila
+      el firmware con <code>make flash</code>.</p>
+    <p class="nope" lang="en">This browser has no Web Serial. Open the page in desktop Chrome or Edge, or build the
+      firmware yourself with <code>make flash</code>.</p>
+    <div class="specs">
+      <div><b>6</b><span lang="es">especies</span><span lang="en">species</span></div>
+      <div><b>6</b><span lang="es">etapas</span><span lang="en">stages</span></div>
+      <div><b>154</b>sprites</div>
+      <div><b>1</b><span lang="es">botón</span><span lang="en">button</span></div>
+      <div><b>0</b><span lang="es">apps que instalar</span><span lang="en">apps to install</span></div>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="board" aria-label="ESPgotchi board">
+      <div class="screen"><canvas id="lcd" width="320" height="172"></canvas></div>
+      <div class="pcb">
+        <div class="key"><span class="led" id="led"></span><span class="label">WS2812</span></div>
+        <div class="keys">
+          <div class="key"><button id="boot" type="button" aria-label="BOOT"></button><span class="label">BOOT</span></div>
+          <div class="key"><button type="button" disabled aria-label="RST"></button><span class="label">RST</span></div>
+        </div>
+        <div class="key"><span class="usb"></span><span class="label">USB-C</span></div>
+      </div>
+    </div>
+    <div class="actions" id="actions">
+      <button data-a="feed">🍔 <span lang="es" class="inl">Comer</span><span lang="en" class="inl">Feed</span></button>
+      <button data-a="snack">🍬 Snack</button>
+      <button data-a="play">⚽ <span lang="es" class="inl">Jugar</span><span lang="en" class="inl">Play</span></button>
+      <button data-a="pet">💗 <span lang="es" class="inl">Acariciar</span><span lang="en" class="inl">Pet</span></button>
+      <button data-a="clean">🫧 <span lang="es" class="inl">Limpiar</span><span lang="en" class="inl">Clean</span></button>
+      <button data-a="lights">🌙 <span lang="es" class="inl">Luces</span><span lang="en" class="inl">Lights</span></button>
+    </div>
+    <p id="log"></p>
+    <p class="hint" lang="es">Demo en vivo con los sprites reales del firmware. El tiempo va acelerado: aquí evoluciona en segundos, en la placa tarda días.</p>
+    <p class="hint" lang="en">Live demo using the firmware's actual sprites. Time runs fast here: it evolves in seconds, on the board it takes days.</p>
+    <div class="species" id="species-tabs" role="group" aria-label="Species"></div>
+  </div>
+</div>
+
+<section id="web">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="eyebrow" lang="es">La web la sirve el propio chip</p><p class="eyebrow" lang="en">The chip serves its own web app</p>
+      <h2 lang="es">Sin app, sin cuenta, sin nube. El panel vive dentro del ESP32.</h2>
+      <h2 lang="en">No app, no account, no cloud. The panel lives inside the ESP32.</h2>
+      <p lang="es">La placa levanta su propio servidor y publica <code>http://espgotchi.local</code> en tu red. Abre
+        esa dirección en el navegador de cualquier móvil, guárdala en la pantalla de inicio y ya tienes la
+        companion app. Nada sale de tu WiFi.</p>
+      <p lang="en">The board runs its own server and announces <code>http://espgotchi.local</code> on your network. Open
+        that address in any phone browser, add it to the home screen, and that is your companion app. Nothing
+        leaves your WiFi.</p>
+    </div>
+    <div class="web">
+      <div class="phone" aria-label="ESPgotchi web panel on a phone">
+        <div class="phone-screen">
+          <div class="p-head">
+            <div><b><span id="p-emoji">🐱</span><span id="p-name">Pixel</span></b><small id="p-stage">kawaii · child · evolves in 1h 25m</small></div>
+            <span class="p-badge" id="p-mood">happy</span>
+          </div>
+          <div class="p-card">
+            <canvas id="lcd2" width="320" height="172"></canvas>
+            <div class="p-stats">
+              <div class="p-stat" style="--c:#ff9f43"><label>Food <b id="p-v-hunger">80</b></label><div class="p-bar"><i id="p-b-hunger"></i></div></div>
+              <div class="p-stat" style="--c:#ff5c8a"><label>Fun <b id="p-v-happy">75</b></label><div class="p-bar"><i id="p-b-happy"></i></div></div>
+              <div class="p-stat" style="--c:#4d96ff"><label>Energy <b id="p-v-energy">85</b></label><div class="p-bar"><i id="p-b-energy"></i></div></div>
+              <div class="p-stat" style="--c:#5ecbc0"><label>Clean <b id="p-v-hygiene">95</b></label><div class="p-bar"><i id="p-b-hygiene"></i></div></div>
+              <div class="p-stat" style="--c:#4fd27a"><label>Health <b id="p-v-health">100</b></label><div class="p-bar"><i id="p-b-health"></i></div></div>
+              <div class="p-stat" style="--c:#c77dff"><label>Weight <b>20</b></label><div class="p-bar"><i style="width:20%"></i></div></div>
+            </div>
+          </div>
+          <div class="p-card">
+            <h4>Care</h4>
+            <div class="p-actions" id="p-actions">
+              <button type="button" data-a="feed"><span>🍔</span>Feed</button>
+              <button type="button" data-a="snack"><span>🍬</span>Snack</button>
+              <button type="button" data-a="play"><span>⚽</span>Play</button>
+              <button type="button" data-a="pet"><span>💗</span>Pet</button>
+              <button type="button" data-a="clean"><span>🧼</span>Clean</button>
+              <button type="button" data-a="lights"><span>🌙</span>Lights off</button>
+              <button type="button" data-a="medicine"><span>💊</span>Medicine</button>
+              <button type="button" data-a="reset" class="danger"><span>✨</span>New egg</button>
+            </div>
+          </div>
+          <div class="p-card">
+            <h4>Log</h4>
+            <ul class="p-log">
+              <li><time>14:02</time>Meal: ramen</li>
+              <li><time>13:48</time>Played with Pixel</li>
+              <li><time>13:31</time>Uh oh, Pixel made a mess</li>
+            </ul>
+          </div>
+          <div class="p-card">
+            <h4>Settings</h4>
+            <div class="p-settings">
+              <div class="p-field"><span>Pet name</span><em>Rename</em></div>
+              <div class="p-field"><span style="flex:none;border:0;background:none;padding-left:0">Brightness</span><div class="p-range"></div></div>
+              <div class="p-field"><div class="p-seg"><i class="on">Landscape</i><i>Landscape ↻</i><i>Portrait</i><i>Portrait ↻</i></div></div>
+              <div class="p-field"><span>POSIX TZ, e.g. CST6</span><em>Set</em></div>
+              <div class="p-field"><span>WiFi SSID</span><span>••••••••</span><em>Save</em></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="web-copy">
+        <ul>
+          <li><i>🪞</i><div><b lang="es">Espejo de la pantalla en tiempo real</b><b lang="en">Real-time screen mirror</b>
+            <p lang="es">El panel dibuja lo mismo que ves en la placa, con los mismos sprites y animaciones. El de este móvil
+              es el pet de arriba: pulsa un botón aquí y mira el espejo.</p>
+            <p lang="en">The panel draws exactly what the board shows, same sprites and animations. This phone mirrors the
+              pet above: press a button here and watch the mirror.</p></div></li>
+          <li><i>🍔</i><div><b lang="es">Acciones y log de 16 eventos</b><b lang="en">Actions and a 16-event log</b>
+            <p lang="es">Comer, snack, jugar, acariciar, limpiar, luces, medicina, eclosionar y huevo nuevo con selector de
+              especie. Cada cosa que pasa queda en el log con su hora.</p>
+            <p lang="en">Feed, snack, play, pet, clean, lights, medicine, hatch and new egg with a species picker. Everything
+              that happens lands in the log with its time.</p></div></li>
+          <li><i>⚙️</i><div><b lang="es">Ajustes del dispositivo</b><b lang="en">Device settings</b>
+            <p lang="es">Renombrar al pet, brillo en vivo, orientación horizontal o vertical (con giro) y zona horaria POSIX
+              para el modo noche.</p>
+            <p lang="en">Rename the pet, live brightness, landscape or portrait orientation (flipped too) and a POSIX time
+              zone for night mode.</p></div></li>
+          <li><i>📶</i><div><b lang="es">WiFi y portal cautivo</b><b lang="en">WiFi and captive portal</b>
+            <p lang="es">Sin credenciales, la placa abre la red <code>ESPgotchi-XXXX</code> y el portal te lleva al formulario.
+              Después puedes cambiar de red desde el propio panel.</p>
+            <p lang="en">With no credentials the board opens the <code>ESPgotchi-XXXX</code> network and the portal takes you to
+              the form. Later you can switch networks from the panel itself.</p></div></li>
+        </ul>
+        <div class="url"><i></i>http://espgotchi.local</div>
+        <p class="fine" lang="es">Es una sola página en JavaScript sin dependencias: unos 26 KB que viajan comprimidos a 9 KB
+          desde la flash del chip con <code>Content-Encoding: gzip</code>. Los sprites los lee de <code>/sprites.json</code>,
+          el mismo fichero que usa esta página.</p>
+        <p class="fine" lang="en">It is a single vanilla JavaScript page with no dependencies: about 26 KB, shipped gzipped
+          to 9 KB from the chip's flash with <code>Content-Encoding: gzip</code>. It reads its sprites from
+          <code>/sprites.json</code>, the same file this page uses.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="species">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="eyebrow" lang="es">Seis especies</p><p class="eyebrow" lang="en">Six species</p>
+      <h2 lang="es">Del huevo al anciano, y lo que pase por medio depende de ti.</h2>
+      <h2 lang="en">From egg to elder, and what happens in between is up to you.</h2>
+      <p lang="es">Cada especie tiene su propio huevo, sus frames de bebé, niño, adolescente y adulto, y
+        tres formas adultas. Con un error de cuidado o menos, salud alta y buen ánimo sale la forma
+        <b>elite</b>. Con cinco errores o la salud por los suelos, la <b>feral</b>. El resto, el adulto normal.
+        Los dormidos no están dibujados: se generan cerrando los ojos del sprite despierto.
+        <b>Boo</b> y <b>Jack</b> son la edición especial de Halloween: un fantasma y una calabaza que evolucionan igual que el resto.</p>
+      <p lang="en">Each species has its own egg, its baby, child, teen and adult frames, and three adult forms.
+        One care mistake or fewer, high health and good mood gets you the <b>elite</b> form. Five mistakes or
+        rock-bottom health, the <b>feral</b> one. Everything else, the regular adult. Sleeping frames are not
+        drawn by hand: they are generated by closing the eyes of the awake sprite.
+        <b>Boo</b> and <b>Jack</b> are the Halloween special edition: a ghost and a pumpkin that evolve like everyone else.</p>
+    </div>
+    <div class="evo" id="evo"></div>
+  </div>
+</section>
+
+<section id="care">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="eyebrow" lang="es">Cuidados</p><p class="eyebrow" lang="en">Care</p>
+      <h2 lang="es">Cinco barras, y todas bajan solas.</h2>
+      <h2 lang="en">Five bars, and every one of them drains on its own.</h2>
+      <p lang="es">La simulación corre una vez por segundo en la placa. Los números de aquí son los de verdad,
+        sacados de <code>pet.cpp</code>.</p>
+      <p lang="en">The simulation ticks once a second on the board. These numbers are the real ones, straight
+        from <code>pet.cpp</code>.</p>
+    </div>
+    <div class="grid">
+      <div class="card" style="--c:#ff9f43"><h3><span class="dot"></span><span lang="es">Hambre</span><span lang="en">Hunger</span></h3>
+        <p><span class="num">−1 / 90 s</span> <span lang="es">despierto. Una comida da +30, un snack +8 y engorda. Si está lleno, rechaza el plato.</span><span lang="en">while awake. A meal gives +30, a snack +8 and adds weight. When full, it refuses the plate.</span></p></div>
+      <div class="card" style="--c:#ff5c8a"><h3><span class="dot"></span><span lang="es">Diversión</span><span lang="en">Fun</span></h3>
+        <p><span class="num">−1 / 120 s</span>. <span lang="es">Jugar da +25 y gasta energía; acariciar +8 y funciona incluso dormido (ronronea).</span><span lang="en">Playing gives +25 and costs energy; petting +8 and works even asleep (it purrs).</span></p></div>
+      <div class="card" style="--c:#4d96ff"><h3><span class="dot"></span><span lang="es">Energía</span><span lang="en">Energy</span></h3>
+        <p><span class="num">−1 / 150 s</span>. <span lang="es">Al llegar a 10 se duerme agotado. Dormido recupera +1 cada 20 s y las demás barras casi se congelan.</span><span lang="en">At 10 it falls asleep exhausted. Asleep it recovers +1 every 20 s and the other bars nearly freeze.</span></p></div>
+      <div class="card" style="--c:#5ecbc0"><h3><span class="dot"></span><span lang="es">Limpieza</span><span lang="en">Hygiene</span></h3>
+        <p><span class="num">−1 / 180 s</span>, <span lang="es">el triple con una caca en la habitación. Las cacas llegan unos diez minutos después de comer, hasta tres.</span><span lang="en">three times faster with a poop in the room. Poops show up about ten minutes after a meal, up to three.</span></p></div>
+      <div class="card" style="--c:#4fd27a"><h3><span class="dot"></span><span lang="es">Salud</span><span lang="en">Health</span></h3>
+        <p><span class="num">±1 / 30 s</span>. <span lang="es">Baja con hambre a cero, suciedad a cero o enfermedad; sube cuando todo lo demás está por encima de 40. A cero, se acabó.</span><span lang="en">Drops with zero hunger, zero hygiene or sickness; climbs when everything else is above 40. At zero, it is over.</span></p></div>
+      <div class="card" style="--c:#c77dff"><h3><span class="dot"></span><span lang="es">Errores de cuidado</span><span lang="en">Care mistakes</span></h3>
+        <p><span lang="es">Cada vez que enferma cuenta uno. Son los que deciden la forma adulta a las 48 h, y no se borran.</span><span lang="en">Every illness counts as one. They decide the adult form at 48 h, and they never reset.</span></p></div>
+    </div>
+    <div class="timeline">
+      <p class="eyebrow" lang="es">Si lo dejas solo</p><p class="eyebrow" lang="en">If you leave it alone</p>
+      <ol>
+        <li><b>~2.5 h</b><span lang="es">hambre a cero</span><span lang="en">hunger hits zero</span></li>
+        <li><b>+15–30 min</b><span lang="es">probablemente enferma</span><span lang="en">most likely gets sick</span></li>
+        <li><b>~4 h</b><span lang="es">salud a cero</span><span lang="en">health hits zero</span></li>
+        <li><b>6 s</b><span lang="es">de BOOT para un huevo nuevo, generación +1</span><span lang="en">on BOOT for a new egg, generation +1</span></li>
+      </ol>
+      <p style="margin-top:1rem" lang="es">Apagada, la placa no simula nada; al volver a encenderse con hora NTP recupera lo que pasó, con un
+        tope de ocho horas. Dormido con las luces apagadas, todo va diez veces más lento.</p>
+      <p style="margin-top:1rem" lang="en">Powered off, the board simulates nothing; on the next boot with NTP time it catches up on what
+        happened, capped at eight hours. Asleep with the lights off, everything runs ten times slower.</p>
+    </div>
+  </div>
+</section>
+
+<section id="button">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="eyebrow" lang="es">Un botón y un LED</p><p class="eyebrow" lang="en">One button and one LED</p>
+      <h2 lang="es">La placa trae un botón libre. Con eso basta.</h2>
+      <h2 lang="en">The board has one free button. That is enough.</h2>
+      <p lang="es">RST reinicia el chip y no se puede programar, así que todo pasa por BOOT. El LED WS2812 cuenta
+        el humor y confirma cada orden, venga del botón, de la web o del puerto serie.</p>
+      <p lang="en">RST resets the chip and cannot be programmed, so everything goes through BOOT. The WS2812 LED
+        tells the mood and acknowledges every command, whether it came from the button, the web or serial.</p>
+    </div>
+    <div class="two">
+      <div class="card">
+        <h3 lang="es">Gestos de BOOT</h3><h3 lang="en">BOOT gestures</h3>
+        <dl class="gest" style="margin-top:.9rem">
+          <dt lang="es">clic</dt><dt lang="en">click</dt><dd lang="es">Abre el menú y avanza por sus siete iconos. Con huevo: eclosiona.</dd><dd lang="en">Opens the menu and steps through its seven icons. With an egg: hatches it.</dd>
+          <dt lang="es">doble clic</dt><dt lang="en">double click</dt><dd lang="es">Acaricia al pet sin pasar por el menú.</dd><dd lang="en">Pets the creature without going through the menu.</dd>
+          <dt>0.6 s</dt><dd lang="es">Ejecuta el icono seleccionado. Sin menú: página de info con IP, WiFi y versión.</dd><dd lang="en">Runs the selected icon. With no menu open: info page with IP, WiFi and version.</dd>
+          <dt>6 s</dt><dd lang="es">Huevo nuevo. También es la salida cuando ha muerto.</dd><dd lang="en">New egg. Also the way out once it has died.</dd>
+        </dl>
+      </div>
+      <div class="card">
+        <h3 lang="es">Lo que dice el LED</h3><h3 lang="en">What the LED says</h3>
+        <ul class="leds" style="margin-top:.9rem">
+          <li><i style="--c:#4fd27a"></i><span lang="es">Verde respirando: todo bien.</span><span lang="en">Breathing green: all good.</span></li>
+          <li><i class="blink" style="--c:#ffb454"></i><span lang="es">Doble parpadeo ámbar cada 2 s: necesita algo.</span><span lang="en">Amber double blink every 2 s: it needs something.</span></li>
+          <li><i class="fast" style="--c:#ff4040"></i><span lang="es">Rojo rápido: enfermo o con poca salud.</span><span lang="en">Fast red: sick or low on health.</span></li>
+          <li><i style="--c:#ffffff"></i><span lang="es">Destello blanco: orden aplicada. Rojo corto: rechazada.</span><span lang="en">White flash: command applied. Short red: refused.</span></li>
+          <li><i class="rainbow"></i><span lang="es">Arcoíris: acaba de eclosionar o evolucionar.</span><span lang="en">Rainbow: it just hatched or evolved.</span></li>
+          <li><i style="--c:#4d6cff;opacity:.6"></i><span lang="es">Azul tenue dormido, blanco huevo, violeta muerto.</span><span lang="en">Dim blue asleep, white as an egg, violet when gone.</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="install">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="eyebrow" lang="es">Instalar</p><p class="eyebrow" lang="en">Install</p>
+      <h2 lang="es">Del cable USB al pet en tres minutos.</h2>
+      <h2 lang="en">From USB cable to pet in three minutes.</h2>
+    </div>
+    <div class="two">
+      <ol class="steps">
+        <li><strong lang="es">Flashea desde el navegador.</strong><strong lang="en">Flash from the browser.</strong>
+          <p lang="es">Conecta la placa por USB-C y pulsa <em>Instalar en la placa</em> arriba. Usa Web Serial, así que
+            hace falta Chrome o Edge de escritorio. Si no la detecta: mantén BOOT, toca RST, suelta BOOT.</p>
+          <p lang="en">Plug the board in over USB-C and press <em>Install on the board</em> above. It uses Web Serial, so
+            it needs desktop Chrome or Edge. If it is not detected: hold BOOT, tap RST, release BOOT.</p></li>
+        <li><strong lang="es">Conéctate a <code>ESPgotchi-XXXX</code>.</strong><strong lang="en">Join <code>ESPgotchi-XXXX</code>.</strong>
+          <p lang="es">Es una red abierta que la placa levanta mientras no tiene WiFi guardado. El portal cautivo se abre
+            solo; si no, entra en <code>http://192.168.4.1</code>. Elige tu red de la lista y guarda.</p>
+          <p lang="en">An open network the board brings up while it has no saved WiFi. The captive portal opens by itself;
+            if not, go to <code>http://192.168.4.1</code>. Pick your network from the list and save.</p></li>
+        <li><strong lang="es">Abre <code>http://espgotchi.local</code>.</strong><strong lang="en">Open <code>http://espgotchi.local</code>.</strong>
+          <p lang="es">La placa reinicia, se une a tu red y publica su nombre por mDNS. Ahí está el espejo de la pantalla,
+            las acciones, el log, el brillo, la orientación y la zona horaria. Guárdalo en la pantalla de inicio del móvil.</p>
+          <p lang="en">The board reboots, joins your network and announces itself over mDNS. There you get the screen mirror,
+            the actions, the log, brightness, orientation and time zone. Add it to your phone's home screen.</p></li>
+      </ol>
+      <div>
+        <pre><code><span lang="es" class="inl"># O compílalo tú (arduino-cli + Node ≥ 18)</span><span lang="en" class="inl"># Or build it yourself (arduino-cli + Node ≥ 18)</span>
+git clone https://github.com/Adrianmtzb/espgotchi
+cd espgotchi
+make deps     <span lang="es" class="inl"># core esp32 3.2.0 + librerías fijadas</span><span lang="en" class="inl"># esp32 core 3.2.0 + pinned libraries</span>
+make flash    <span lang="es" class="inl"># genera assets, compila y sube</span><span lang="en" class="inl"># generates assets, compiles, uploads</span>
+make monitor  <span lang="es" class="inl"># consola serie, escribe 'help'</span><span lang="en" class="inl"># serial console, type 'help'</span></code></pre>
+        <div class="scroll" style="margin-top:1rem">
+        <table>
+          <tr><th lang="es">Función</th><th lang="en">Function</th><th>GPIO</th><th lang="es">Notas</th><th lang="en">Notes</th></tr>
+          <tr><td>LCD ST7789 172×320</td><td>6 7 14 15 21</td><td lang="es">SPI 80 MHz, offset de columna 34, INVON</td><td lang="en">SPI 80 MHz, column offset 34, INVON</td></tr>
+          <tr><td>Backlight</td><td>22</td><td lang="es">MOSFET, PWM 5 kHz</td><td lang="en">MOSFET, 5 kHz PWM</td></tr>
+          <tr><td>LED WS2812</td><td>8</td><td><code>rgbLedWrite</code></td></tr>
+          <tr><td>BOOT</td><td>9</td><td lang="es">activo bajo, pull-up en placa</td><td lang="en">active low, on-board pull-up</td></tr>
+          <tr><td>USB</td><td>—</td><td lang="es">USB-Serial-JTAG nativo del C6</td><td lang="en">C6 native USB-Serial-JTAG</td></tr>
+        </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="inside">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="eyebrow" lang="es">Por dentro</p><p class="eyebrow" lang="en">Inside</p>
+      <h2 lang="es">Un JSON dibuja la pantalla, la web y esta página.</h2>
+      <h2 lang="en">One JSON draws the screen, the web panel and this page.</h2>
+      <p lang="es">Los sprites son texto: filas de dígitos que apuntan a una paleta de ocho colores. Un generador los
+        convierte en tablas C para el firmware; la web embebida y esta demo leen el mismo fichero tal cual.
+        Cambias un píxel en un sitio y cambia en los tres.</p>
+      <p lang="en">Sprites are text: rows of digits pointing into an eight-color palette. A generator turns them into C
+        tables for the firmware; the embedded web panel and this demo read the very same file. Change one pixel in
+        one place and it changes in all three.</p>
+    </div>
+    <div class="two">
+      <pre class="flow"><b>shared/sprites.json</b>   24×24 pets, 16×16 icons, species themes
+        │
+        ├── tools/gen_sprites.mjs ──▶ firmware/espgotchi/<b>sprites.h</b>
+        │       └── tools/sleepy.mjs    closed-eye frames, derived
+        ├── tools/gen_web.mjs ───────▶ firmware/espgotchi/<b>web_assets.h</b>
+        │                               (web/index.html + sprites.json, gzip, PROGMEM)
+        └── served as-is ───────────▶ <b>/sprites.json</b> on the board, and here</pre>
+      <div style="display:grid;gap:1rem;min-width:0">
+      <div class="card">
+        <h3><span lang="es">Cuídalo con una IA</span><span lang="en">Let an AI look after it</span></h3>
+        <p lang="es">El repo incluye un servidor <b>MCP</b> (<code>mcp/</code>) que envuelve la API: un asistente como
+          Claude puede preguntar <code>get_state</code>, recibir consejos de qué le hace falta y llamar a
+          <code>feed</code>, <code>play</code>, <code>clean</code> o <code>medicine</code>. Un prompt
+          <em>caretaker</em> le enseña a no pasarse con los snacks ni despertarlo.</p>
+        <p lang="en">The repo ships an <b>MCP</b> server (<code>mcp/</code>) wrapping the API: an assistant like
+          Claude can ask <code>get_state</code>, get advice on what the pet needs and call <code>feed</code>,
+          <code>play</code>, <code>clean</code> or <code>medicine</code>. A <em>caretaker</em> prompt teaches it
+          not to overdo the snacks or wake the pet up.</p>
+        <pre style="margin-top:.8rem"><code>claude mcp add espgotchi -e ESPGOTCHI_HOST=espgotchi.local \
+  -- node /path/to/espgotchi/mcp/server.mjs</code></pre>
+      </div>
+      <div class="scroll">
+        <table>
+          <tr><th lang="es">Ruta</th><th lang="en">Route</th><th lang="es">Qué hace</th><th lang="en">What it does</th></tr>
+          <tr><td><code>GET /api/state</code></td><td lang="es">Nombre, especie, etapa, forma, las cinco barras, animación en curso</td><td lang="en">Name, species, stage, form, the five bars, current animation</td></tr>
+          <tr><td><code>GET /api/events</code></td><td lang="es">Los últimos 16 eventos</td><td lang="en">The last 16 events</td></tr>
+          <tr><td><code>GET /api/info</code></td><td lang="es">Firmware, IP, RSSI, heap, hora local, brillo</td><td lang="en">Firmware, IP, RSSI, heap, local time, brightness</td></tr>
+          <tr><td><code>POST /api/action</code></td><td><code>{"type":"feed"}</code> · snack · play · pet · clean · sleep · medicine · hatch · reset</td></tr>
+          <tr><td><code>POST /api/settings</code></td><td lang="es">Zona horaria, brillo, orientación</td><td lang="en">Time zone, brightness, orientation</td></tr>
+          <tr><td><code>POST /api/name</code></td><td lang="es">Renombrar (15 caracteres)</td><td lang="en">Rename (15 characters)</td></tr>
+        </table>
+      </div>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p lang="es"><b>ESPgotchi</b> es software libre bajo licencia MIT. El código, los sprites y esta página están en
+      <a href="https://github.com/Adrianmtzb/espgotchi">GitHub</a>; las contribuciones son bienvenidas.
+      Hecho por <a href="https://adrianmb.dev/">Adrián</a>.</p>
+    <p lang="en"><b>ESPgotchi</b> is free software under the MIT license. The code, the sprites and this page live on
+      <a href="https://github.com/Adrianmtzb/espgotchi">GitHub</a>; contributions are welcome.
+      Made by <a href="https://adrianmb.dev/">Adrián</a>.</p>
+    <p lang="es">Waveshare es una marca de su titular y se menciona solo para identificar la placa compatible. Este
+      proyecto no está afiliado a Waveshare ni a Bandai. Las fuentes FreeSans embebidas son de Adafruit GFX (BSD).</p>
+    <p lang="en">Waveshare is a trademark of its owner and is mentioned only to identify the compatible board. This
+      project is not affiliated with Waveshare or Bandai. The embedded FreeSans fonts come from Adafruit GFX (BSD).</p>
+  </div>
+</footer>
+
+<script>
+/* ---------- language ---------- */
+(function () {
+  const btn = document.getElementById('lang');
+  let lang = 'es';
+  try { lang = localStorage.getItem('espgotchi-lang') || (navigator.language.startsWith('es') ? 'es' : 'en'); } catch (e) {}
+  const apply = l => { document.documentElement.lang = l; btn.textContent = l === 'es' ? 'English' : 'Español'; };
+  apply(lang); btn.hidden = false;
+  btn.onclick = () => { lang = lang === 'es' ? 'en' : 'es'; apply(lang); try { localStorage.setItem('espgotchi-lang', lang); } catch (e) {} };
+})();
+
+/* ---------- version from the installer manifest ---------- */
+fetch('manifest.json').then(r => r.json()).then(m => {
+  for (const id of ['ver', 'ver-en']) document.getElementById(id).textContent = 'v' + m.version;
+}).catch(() => {});
+if (!('serial' in navigator)) document.body.classList.add('unsupported');
+
+/* ---------- sprite sheet ---------- */
+const PAL = { '#': 0, 'o': 1, 'x': 2 };
+let sheet = null;
+const sleepCache = {};
+function sleepyRows(rows, eyeIdx) {
+  // Same algorithm as tools/sleepy.mjs: every eye blob becomes skin plus a one-pixel lid.
+  const n = rows.length, g = rows.map(r => [...r].map(c => (c === '.' ? -1 : (c in PAL ? PAL[c] : +c))));
+  const isEye = (r, c) => r >= 0 && c >= 0 && r < n && c < n && eyeIdx.includes(g[r][c]);
+  const seen = rows.map(() => Array(n).fill(false));
+  for (let r0 = 0; r0 < n; r0++) for (let c0 = 0; c0 < n; c0++) {
+    if (seen[r0][c0] || !isEye(r0, c0)) continue;
+    const blob = [], st = [[r0, c0]]; seen[r0][c0] = true;
+    while (st.length) {
+      const [r, c] = st.pop(); blob.push([r, c]);
+      for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const rr = r + dr, cc = c + dc; if (isEye(rr, cc) && !seen[rr][cc]) { seen[rr][cc] = true; st.push([rr, cc]); } }
+    }
+    const rs = blob.map(b => b[0]), cs = blob.map(b => b[1]);
+    const top = Math.min(...rs), bot = Math.max(...rs), left = Math.min(...cs), right = Math.max(...cs);
+    if (bot === top && right - left >= 3) continue;
+    const cnt = {};
+    for (const [r, c] of blob) for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const rr = r + dr, cc = c + dc; if (rr < 0 || cc < 0 || rr >= n || cc >= n) continue;
+      const v = g[rr][cc]; if (v > 0 && !eyeIdx.includes(v)) cnt[v] = (cnt[v] || 0) + 1;
+    }
+    const skin = +Object.entries(cnt).sort((a, b) => b[1] - a[1])[0]?.[0] || 1;
+    for (const [r, c] of blob) g[r][c] = r === bot ? 0 : skin;
+  }
+  return g.map(row => row.map(v => (v < 0 ? '.' : String(v))).join(''));
+}
+function resolveSprite(name) {
+  if (name.endsWith('_sleep') && !sheet.sprites[name]) {
+    if (!sleepCache[name]) {
+      const base = resolveSprite(name.replace(/_sleep$/, '_0')); if (!base) return null;
+      const sp = sheet.species[name.split('_')[0]] || {};
+      sleepCache[name] = { rows: sleepyRows(base.rows, sp.eyes || [4, 5]), palette: base.palette };
+    }
+    return sleepCache[name];
+  }
+  const s = sheet.sprites[name]; if (!s) return null;
+  if (s.rows) return s;
+  const base = resolveSprite(s.base);
+  const rows = [...base.rows]; for (const [k, v] of Object.entries(s.patch)) rows[+k] = v;
+  return { rows, palette: s.palette || base.palette };
+}
+function drawSprite(ctx, name, x, y, scale, maxCols = 99) {
+  const s = sheet && resolveSprite(name); if (!s) return;
+  const n = s.rows.length;
+  for (let r = 0; r < n; r++) for (let c = 0; c < n && c < maxCols; c++) {
+    const ch = s.rows[r][c]; if (ch === '.') continue;
+    ctx.fillStyle = s.palette[ch in PAL ? PAL[ch] : +ch];
+    ctx.fillRect(x + c * scale, y + r * scale, scale, scale);
+  }
+}
+function spriteCanvas(name, size) {
+  const c = document.createElement('canvas'); c.width = c.height = size;
+  const n = resolveSprite(name).rows.length, sc = Math.floor(size / (n + 2));
+  drawSprite(c.getContext('2d'), name, Math.floor((size - n * sc) / 2), Math.floor((size - n * sc) / 2), sc);
+  return c;
+}
+
+/* ---------- the demo pet (compressed clock: stages last seconds, not hours) ---------- */
+const STAGES = ['egg', 'baby', 'child', 'teen', 'adult', 'elder'];
+const STAGE_SEC = { egg: 4, baby: 18, child: 18, teen: 18, adult: 40, elder: Infinity };
+const pet = { name: 'Pixel', species: 'kawaii', stage: 'egg', form: 'normal', age: 0, hunger: 80, happy: 75, energy: 85, hygiene: 95, health: 100,
+  poops: 0, asleep: false, lightsOff: false, anim: null, animAt: 0, animItem: null, mistakes: 0, lastMeal: 0 };
+const log = document.getElementById('log');
+const say = (es, en) => { log.innerHTML = ''; const a = document.createElement('span'); a.lang = 'es'; a.textContent = es; const b = document.createElement('span'); b.lang = 'en'; b.textContent = en; log.append(a, b); };
+const clamp = v => Math.max(0, Math.min(100, v));
+let ledFlash = null, ledRainbowUntil = 0;
+const flash = (ok) => { ledFlash = { color: ok ? '#ffffff' : '#ff3030', until: performance.now() + (ok ? 180 : 350) }; };
+
+function startAnim(a, item) { pet.anim = a; pet.animAt = performance.now(); pet.animItem = item || null; }
+const ACTIONS = {
+  feed() { if (pet.asleep) return refuse('Está dormido', 'It is asleep'); if (pet.hunger >= 95) return refuse('Está lleno y rechaza el plato', 'Full, it refuses the plate');
+    pet.hunger = clamp(pet.hunger + 30); pet.lastMeal = pet.age; startAnim('eat', pick(sheet.meals)); return ok('Ñam, una comida de verdad', 'Yum, a proper meal'); },
+  snack() { if (pet.asleep) return refuse('Está dormido', 'It is asleep'); pet.hunger = clamp(pet.hunger + 8); pet.happy = clamp(pet.happy + 12); startAnim('snack', pick(sheet.snacks)); return ok('Hora del snack', 'Snack time'); },
+  play() { if (pet.asleep) return refuse('Está dormido', 'It is asleep'); if (pet.energy < 10) return refuse('Demasiado cansado para jugar', 'Too tired to play');
+    pet.happy = clamp(pet.happy + 25); pet.energy = clamp(pet.energy - 10); startAnim('play'); return ok('Jugando', 'Playing'); },
+  pet() { startAnim('pet'); if (pet.asleep) return ok('Ronronea dormido', 'Purrs in its sleep'); pet.happy = clamp(pet.happy + 8); return ok('Caricias', 'Petted'); },
+  clean() { pet.poops = 0; pet.hygiene = 100; startAnim('clean'); return ok('Todo limpio', 'All clean'); },
+  lights() { pet.lightsOff = !pet.lightsOff; pet.asleep = pet.lightsOff; return ok(pet.lightsOff ? 'Luces fuera, a dormir' : 'Luces encendidas, arriba', pet.lightsOff ? 'Lights off, time to sleep' : 'Lights on, wake up'); },
+};
+function ok(es, en) { say(es, en); flash(true); return true; }
+function refuse(es, en) { say(es, en); flash(false); return false; }
+function pick(list) { return list[Math.floor(Math.random() * list.length)]; }
+function act(type) { if (pet.stage === 'egg') { hatch(); return; } if (pet.health <= 0) return; ACTIONS[type] && ACTIONS[type](); }
+function hatch() { pet.stage = 'baby'; pet.age = 0; startAnim('hatch'); ledRainbowUntil = performance.now() + 4000; ok('¡Ha eclosionado!', 'It hatched!'); }
+
+let menuSel = -1, menuAt = 0, pendingClick = 0, downAt = 0, longFired = false;
+const MENU = ['feed', 'play', 'pet', 'clean', 'lights', 'medicine', 'info'];
+const bootBtn = document.getElementById('boot');
+const press = () => { downAt = performance.now(); longFired = false; flash(true); };
+const release = () => {
+  if (!downAt) return; const held = performance.now() - downAt; downAt = 0;
+  if (longFired) return;
+  if (pet.stage === 'egg') { hatch(); return; }
+  if (menuSel >= 0) { menuSel = (menuSel + 1) % MENU.length; menuAt = performance.now(); return; }
+  if (pendingClick) { pendingClick = 0; act('pet'); return; }
+  pendingClick = performance.now();
+};
+bootBtn.addEventListener('pointerdown', e => { e.preventDefault(); press(); });
+bootBtn.addEventListener('pointerup', release); bootBtn.addEventListener('pointerleave', () => { if (downAt) release(); });
+bootBtn.addEventListener('keydown', e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); if (!downAt) press(); } });
+bootBtn.addEventListener('keyup', e => { if (e.key === ' ' || e.key === 'Enter') release(); });
+document.getElementById('actions').addEventListener('click', e => { const b = e.target.closest('button'); if (b) act(b.dataset.a); });
+
+/* one simulated second ~ every 250 ms in the demo */
+let lastTick = 0;
+function tick() {
+  if (pet.health <= 0) return;
+  pet.age++;
+  const r = Math.random();
+  if (pet.stage !== 'egg') {
+    if (pet.asleep) { if (r < .35) pet.energy = clamp(pet.energy + 1); if (pet.energy >= 100 && !pet.lightsOff) { pet.asleep = false; say('Se despertó como nuevo', 'Woke up refreshed'); } }
+    else {
+      if (r < .12) pet.hunger = clamp(pet.hunger - 1); if (r > .9) pet.happy = clamp(pet.happy - 1);
+      if (r > .3 && r < .37) pet.energy = clamp(pet.energy - 1); if (r > .5 && r < .55) pet.hygiene = clamp(pet.hygiene - (pet.poops ? 3 : 1));
+      if (pet.age - pet.lastMeal > 12 && pet.poops < 3 && r > .97) { pet.poops++; pet.lastMeal = pet.age; say('Vaya, ha hecho sus cosas', 'Uh oh, it made a mess'); }
+      if (pet.energy <= 10) { pet.asleep = true; say('Se durmió agotado', 'Fell asleep exhausted'); }
+    }
+    if (pet.hunger === 0 || pet.hygiene === 0) { if (r < .2) pet.health = clamp(pet.health - 1); }
+    else if (pet.hunger > 40 && pet.hygiene > 40 && pet.happy > 40 && r < .2) pet.health = clamp(pet.health + 1);
+    if (pet.health === 0) { say('Se ha ido. Pulsa BOOT 6 s para un huevo nuevo', 'It is gone. Hold BOOT 6 s for a new egg'); return; }
+  }
+  const limit = STAGE_SEC[pet.stage];
+  if (pet.age >= limit) {
+    if (pet.stage === 'egg') return;
+    const next = STAGES[STAGES.indexOf(pet.stage) + 1];
+    if (next) {
+      pet.stage = next; pet.age = 0; ledRainbowUntil = performance.now() + 4000;
+      if (next === 'adult') pet.form = pet.health >= 80 && pet.happy >= 60 ? 'elite' : (pet.health < 40 ? 'feral' : 'normal');
+      say(`¡Evolucionó a ${next}${next === 'adult' && pet.form !== 'normal' ? ' ' + pet.form : ''}!`, `Evolved into ${next === 'adult' && pet.form !== 'normal' ? pet.form + ' ' : ''}${next}!`);
+    }
+  }
+}
+
+/* ---------- draw the 320×172 screen like ui.cpp does ---------- */
+const lcd = document.getElementById('lcd'), ctx = lcd.getContext('2d');
+const lcd2 = document.getElementById('lcd2'), ctx2 = lcd2 ? lcd2.getContext('2d') : null;
+let phoneAt = 0;
+function updatePhone(now) {
+  if (now - phoneAt < 250) return; phoneAt = now;
+  const set = (k, v) => { const b = document.getElementById('p-b-' + k), t = document.getElementById('p-v-' + k); if (b) b.style.width = v + '%'; if (t) t.textContent = v; };
+  set('hunger', pet.hunger); set('happy', pet.happy); set('energy', pet.energy); set('hygiene', pet.hygiene); set('health', pet.health);
+  const name = document.getElementById('p-name'), stage = document.getElementById('p-stage'), mood = document.getElementById('p-mood'), emoji = document.getElementById('p-emoji');
+  if (name) name.textContent = pet.name;
+  if (emoji && sheet) emoji.textContent = sheet.species[pet.species].emoji || '🐾';
+  if (stage) stage.textContent = pet.stage === 'egg' ? `${pet.species} · egg · ${pet.age}s` : `${pet.species} · ${pet.stage}${pet.stage === 'adult' && pet.form !== 'normal' ? ' ' + pet.form : ''} · ${pet.age}s`;
+  if (mood) mood.textContent = pet.health <= 0 ? 'gone' : pet.asleep ? 'sleeping' : pet.health < 30 ? 'sick' : pet.hunger < 25 ? 'hungry' : pet.happy < 25 ? 'bored' : pet.energy < 25 ? 'tired' : 'happy';
+  const lights = document.querySelector('#p-actions [data-a="lights"]'); if (lights) lights.lastChild.textContent = pet.lightsOff ? 'Lights on' : 'Lights off';
+}
+const pActions = document.getElementById('p-actions');
+if (pActions) pActions.addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  const a = b.dataset.a;
+  if (a === 'medicine') { if (pet.stage === 'egg') { hatch(); return; } startAnim('pet'); ok('Medicina', 'Medicine'); }
+  else if (a === 'reset') { Object.assign(pet, { stage: 'egg', age: 0, hunger: 80, happy: 75, energy: 85, hygiene: 95, health: 100, poops: 0, asleep: false, lightsOff: false, anim: null, form: 'normal' }); ledRainbowUntil = performance.now() + 2000; menuSel = -1; say('Huevo nuevo', 'New egg'); }
+  else act(a);
+});
+const ledEl = document.getElementById('led');
+function rr(x, y, w, h, r, fill) { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); ctx.fillStyle = fill; ctx.fill(); }
+function bar(x, y, w, pct, color) { rr(x, y, w, 8, 4, 'rgba(0,0,0,.18)'); if (pct > 0) rr(x, y, Math.max(8, w * pct / 100), 8, 4, color); }
+function slotFor(p) { return p.stage === 'elder' ? 'adult_elder' : p.stage === 'adult' && p.form !== 'normal' ? `adult_${p.form}` : p.stage; }
+function draw(now) {
+  if (!sheet) return;
+  const t = sheet.species[pet.species], frame = Math.floor(now / 500) % 2;
+  const night = pet.lightsOff, bg = night ? t.night : t.bg, bg2 = night ? t.night2 : t.bg2, fg = night ? '#e8ecff' : '#222433';
+  const animAge = pet.anim ? now - pet.animAt : 1e9;
+  const anim = animAge < 3000 ? pet.anim : null;
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, 320, 172);
+  const rx = 8, ry = 30, rw = 200, rh = 134, floorY = ry + rh - 22;
+  rr(rx, ry, rw, rh, 12, bg2);
+  ctx.save(); ctx.beginPath(); ctx.roundRect(rx, ry, rw, rh, 12); ctx.clip(); ctx.fillStyle = 'rgba(0,0,0,.12)'; ctx.fillRect(rx, floorY, rw, rh);
+  if (night) { ctx.fillStyle = '#fff'; for (let i = 0; i < 14; i++) { const sx = rx + (i * 53 + 17) % (rw - 10), sy = ry + 6 + (i * 29) % 70; if ((i + frame) % 3) ctx.fillRect(sx, sy, 2, 2); } }
+  ctx.restore();
+  ctx.fillStyle = fg; ctx.font = 'bold 15px system-ui, sans-serif'; ctx.fillText(pet.name, 10, 21);
+  const pill = pet.stage === 'egg' ? `egg  ${pet.age}s` : `${pet.stage}  ${pet.age}s`;
+  ctx.font = '10px ui-monospace, Menlo, monospace'; const pw = ctx.measureText(pill).width + 14;
+  rr(320 - 24 - pw, 6, pw, 16, 8, t.accent); ctx.fillStyle = '#1a1a2e'; ctx.fillText(pill, 320 - 24 - pw + 7, 17);
+  ctx.fillStyle = '#4fd27a'; ctx.beginPath(); ctx.arc(308, 14, 4, 0, 7); ctx.fill();
+
+  const scale = 4, px = rx + (rw - 24 * scale) / 2, py = floorY + 4 - 24 * scale;
+  if (pet.health <= 0) {
+    drawSprite(ctx, 'skull', rx + (rw - 80) / 2, floorY - 86, 5);
+    ctx.fillStyle = fg; ctx.font = 'bold 12px system-ui'; ctx.fillText('R.I.P.', rx + 60, ry + 22);
+  } else if (pet.stage === 'egg') {
+    drawSprite(ctx, `${pet.species}_egg`, px + (frame ? 2 : -2), py + (pet.age > 2 && frame ? -3 : 0), scale);
+    ctx.fillStyle = fg; ctx.font = '10px system-ui'; ctx.fillText('press BOOT to hatch early', rx + 22, floorY + 14);
+  } else {
+    const alt = frame && !pet.asleep ? 1 : 0;
+    let dx = (!pet.asleep && !anim) ? (frame ? 2 : -2) : 0, dy = anim === 'play' && frame ? -16 : (anim === 'hatch' && frame ? -6 : 0);
+    rr(px + 20, floorY - 1, 56, 6, 3, 'rgba(0,0,0,.15)');
+    drawSprite(ctx, `${pet.species}_${slotFor(pet)}_${pet.asleep && !anim ? 'sleep' : alt}`, px + dx, py + dy, scale);
+    const ex = px + 24 * scale - 14, ey = py - 4;
+    if (anim === 'eat' || anim === 'snack') {
+      const phase = Math.min(2, Math.floor(animAge / 1000));
+      if (phase >= 2) drawSprite(ctx, 'crumbs', rx + 12, floorY - 44, 3);
+      else drawSprite(ctx, pet.animItem, rx + 12, floorY - 44, 3, phase === 0 ? 99 : 9);
+    }
+    if (anim === 'pet') drawSprite(ctx, 'heart', ex, ey + (frame ? 0 : 4), 2);
+    if (anim === 'play') { const tt = now % 600, b = (tt < 300 ? tt : 600 - tt) * 40 / 300; drawSprite(ctx, 'ball', rx + 14, floorY - 32 - b, 2); }
+    if (anim === 'clean') {
+      drawSprite(ctx, 'icon_clean', ex, ey, 2);
+      const bw = 24 * scale + 24, bh = 24 * scale + 10, bx0 = px - 12, by0 = py - 10;
+      for (let i = 0; i < 9; i++) {
+        const ph = (now + i * 311) % 1800, r = 2 + (i % 3);
+        const bx = bx0 + ((i * 37 + 11) % (bw - 16)) + 8 + (Math.floor(ph / 150) % 3) - 1, by = by0 + bh - 6 - ph * (bh - 10) / 1800;
+        ctx.strokeStyle = 'rgba(190,235,255,.95)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(bx, by, r, 0, 7); ctx.stroke();
+      }
+    }
+    if (pet.asleep && !anim) drawSprite(ctx, 'zzz', ex, ey + (frame ? 0 : 3), 2);
+    const needs = pet.poops > 0 || pet.hunger < 25 || pet.happy < 25 || pet.hygiene < 25;
+    if (!pet.asleep && !anim && needs && frame) drawSprite(ctx, 'alert', ex, ey, 2);
+    for (let i = 0; i < pet.poops; i++) drawSprite(ctx, 'poop', rx + rw - 44 - i * 30, floorY - 28, 2);
+  }
+  // stats panel
+  const sx = 218, sw = 94; let sy = 34;
+  ctx.font = '10px system-ui, sans-serif';
+  for (const [label, v, c] of [['food', pet.hunger, '#ff9f43'], ['fun', pet.happy, '#ff5c8a'], ['energy', pet.energy, '#4d96ff'], ['clean', pet.hygiene, '#5ecbc0'], ['health', pet.health, '#4fd27a']]) {
+    ctx.fillStyle = fg; ctx.fillText(label, sx, sy + 8); bar(sx, sy + 12, sw, v, c); sy += 26;
+  }
+  // menu overlay
+  if (menuSel >= 0) {
+    if (now - menuAt > 6000) menuSel = -1;
+    else {
+      const icons = ['meal_burger', 'ball', 'heart', 'icon_clean', 'icon_sleep', 'icon_meds', 'icon_info'];
+      for (let i = 0; i < 7; i++) { const cx = 218 + (i % 2) * 42, cy = 4 + Math.floor(i / 2) * 42; rr(cx, cy, 40, 40, 10, i === menuSel ? t.accent : 'rgba(128,128,160,.3)'); drawSprite(ctx, icons[i], cx + 4, cy + 4, 2); }
+      ctx.fillStyle = fg; ctx.font = 'bold 13px system-ui'; ctx.fillText(MENU[menuSel], 18, floorY + 15);
+      ctx.font = '9px system-ui'; ctx.fillText('hold BOOT to select', rx + rw - 96, floorY + 10);
+    }
+  }
+  // LED
+  let led;
+  if (now < ledRainbowUntil) led = `hsl(${(now / 12) % 360} 100% 60%)`;
+  else if (ledFlash && now < ledFlash.until) led = ledFlash.color;
+  else if (pet.health <= 0) led = '#8040a0';
+  else if (pet.stage === 'egg') led = '#ffffff';
+  else if (pet.asleep) led = 'rgba(80,110,255,.55)';
+  else if (pet.health < 30) led = (now % 500) < 250 ? '#ff3030' : 'rgba(255,48,48,.15)';
+  else if (pet.poops > 0 || pet.hunger < 25 || pet.happy < 25 || pet.hygiene < 25) { const m = now % 2000; led = (m < 120 || (m > 240 && m < 360)) ? '#ffb454' : 'rgba(255,180,84,.1)'; }
+  else led = `rgba(79,210,122,${0.55 + 0.45 * Math.sin(now / 900)})`;
+  ledEl.style.setProperty('--led', led);
+  // companion phone: mirror the screen and the bars
+  if (ctx2) ctx2.drawImage(lcd, 0, 0);
+  updatePhone(now);
+}
+
+function loop(now) {
+  if (downAt && !longFired) {
+    const held = now - downAt;
+    if (held >= 6000) { longFired = true; Object.assign(pet, { stage: 'egg', age: 0, hunger: 80, happy: 75, energy: 85, hygiene: 95, health: 100, poops: 0, asleep: false, lightsOff: false, anim: null, form: 'normal' }); ledRainbowUntil = now + 2000; say('Huevo nuevo', 'New egg'); menuSel = -1; }
+    else if (held >= 600 && menuSel >= 0) { longFired = true; const m = MENU[menuSel]; menuSel = -1; if (m === 'medicine') ok('Medicina', 'Medicine'); else if (m === 'info') say('Info: v' + (document.getElementById('ver').textContent.slice(1)) + ' · espgotchi.local · WiFi ok', 'Info: v' + document.getElementById('ver').textContent.slice(1) + ' · espgotchi.local · WiFi ok'); else act(m); }
+    else if (held >= 600 && pet.stage !== 'egg') { longFired = true; say('Info: espgotchi.local · WiFi ok · 195 KB free', 'Info: espgotchi.local · WiFi ok · 195 KB free'); }
+  }
+  if (pendingClick && now - pendingClick > 350) { pendingClick = 0; menuSel = 0; menuAt = now; }
+  if (now - lastTick > 250) { lastTick = now; tick(); }
+  draw(now);
+  requestAnimationFrame(loop);
+}
+
+/* ---------- species tabs, theme and evolution strips ---------- */
+const tabs = document.getElementById('species-tabs'), evo = document.getElementById('evo');
+function setSpecies(key) {
+  pet.species = key;
+  const t = sheet.species[key];
+  document.documentElement.style.setProperty('--accent', t.accent);
+  for (const b of tabs.children) b.setAttribute('aria-pressed', b.dataset.key === key);
+  for (const r of evo.children) r.toggleAttribute('data-active', r.dataset.key === key);
+  try { localStorage.setItem('espgotchi-species', key); } catch (e) {}
+}
+function buildSpecies() {
+  const seasonTag = (short) => { const t = document.createElement('span'); t.className = 'season'; const es = document.createElement('span'); es.lang = 'es'; es.textContent = short ? 'Halloween' : 'Edición especial Halloween'; const en = document.createElement('span'); en.lang = 'en'; en.textContent = short ? 'Halloween' : 'Halloween special'; t.append(es, en); return t; };
+  for (const [key, t] of Object.entries(sheet.species)) {
+    const b = document.createElement('button'); b.type = 'button'; b.dataset.key = key; b.style.setProperty('--sp', t.accent);
+    b.append(spriteCanvas(`${key}_baby_0`, 48), document.createTextNode(t.label)); if (t.season === 'halloween') b.append(seasonTag(true)); b.onclick = () => setSpecies(key);
+    tabs.append(b);
+    const row = document.createElement('div'); row.className = 'row'; row.dataset.key = key; row.style.setProperty('--sp', t.accent);
+    const h = document.createElement('div'); const h3 = document.createElement('h3'); h3.textContent = t.label; if (t.season === 'halloween') h3.append(seasonTag(false)); h.append(h3);
+    const small = document.createElement('small'); const es = document.createElement('span'); es.lang = 'es'; const en = document.createElement('span'); en.lang = 'en';
+    const blurbs = { kawaii: ['Gatito pastel. Orejas, mejillas y mucho rosa.', 'Pastel kitten. Ears, blush and lots of pink.'], alien: ['Verde, antenas y ojos enormes.', 'Green, antennae and enormous eyes.'], dino: ['Crestas naranjas y colmillos amables.', 'Orange crests and friendly fangs.'], edge: ['Gato cyberpunk con visor de neón.', 'Cyberpunk cat with a neon visor.'], ghost: ['Fantasma de sábana con corona de adulto.', 'Sheet ghost that earns a crown as an adult.'], pumpkin: ['Calabaza tallada con sombrero de bruja.', 'Carved pumpkin that grows a witch hat.'] };
+    es.textContent = (blurbs[key] || ['', ''])[0]; en.textContent = (blurbs[key] || ['', ''])[1]; small.append(es, en); h.append(small); row.append(h);
+    const strip = document.createElement('div'); strip.className = 'strip';
+    const cells = [['egg', 'egg · 1 min'], ['baby_0', 'baby · 30 min'], ['child_0', 'child · 2 h'], ['teen_0', 'teen · 8 h'], ['adult_0', 'adult · 48 h'], ['adult_elite_0', 'elite', 'alt'], ['adult_feral_0', 'feral', 'alt'], ['adult_elder_0', 'elder'], ['adult_sleep', 'asleep', 'alt']];
+    for (const [sp, label, alt] of cells) {
+      const cell = document.createElement('div'); cell.className = 'cell' + (alt ? ' alt' : '');
+      const sz = sp === 'egg' ? 48 : 48; cell.append(spriteCanvas(`${key}_${sp}`, sz)); const l = document.createElement('span'); l.textContent = label; cell.append(l); strip.append(cell);
+    }
+    row.append(strip); evo.append(row);
+  }
+  // wordmark icon
+  const mk = document.getElementById('mark').getContext('2d'); drawSprite(mk, 'heart', 0, 0, 1);
+}
+
+fetch('sprites.json').then(r => r.json()).then(s => {
+  sheet = s; buildSpecies();
+  let start = 'kawaii'; try { start = localStorage.getItem('espgotchi-species') || start; } catch (e) {}
+  setSpecies(sheet.species[start] ? start : 'kawaii');
+  say('Pulsa BOOT para eclosionar', 'Press BOOT to hatch');
+  requestAnimationFrame(loop);
+}).catch(() => { say('No se pudo cargar sprites.json', 'Could not load sprites.json'); });
+</script>
+</body>
+</html>

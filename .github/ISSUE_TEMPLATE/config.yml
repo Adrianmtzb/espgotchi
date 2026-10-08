@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Vulnerabilidad de seguridad
+    url: https://github.com/Adrianmtzb/espgotchi/security/advisories/new
+    about: Repórtala en privado, no como issue público. Ver SECURITY.md.

@@ -1,0 +1,33 @@
+name: Propuesta
+description: Una especie nueva, una mecánica, una mejora del panel
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: Qué propones
+      description: Cuéntalo desde el punto de vista de quien cuida al pet.
+    validations:
+      required: true
+  - type: textarea
+    id: por-que
+    attributes:
+      label: Por qué merece la pena
+      description: Qué problema resuelve o qué hace más divertido.
+  - type: dropdown
+    id: area
+    attributes:
+      label: A qué parte afecta
+      multiple: true
+      options:
+        - Sprites o especies (shared/sprites.json)
+        - Simulación del pet (pet.cpp)
+        - Pantalla (ui.cpp)
+        - Web embebida (web/index.html)
+        - Red, portal cautivo o API (net.cpp)
+        - Instalador web o documentación
+  - type: textarea
+    id: bocetos
+    attributes:
+      label: Bocetos o referencias
+      description: Si es un sprite, pega aquí las filas ASCII o una imagen.
