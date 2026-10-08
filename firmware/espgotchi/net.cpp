@@ -6,6 +6,7 @@
 #include <WiFi.h>
 #include <time.h>
 #include "config.h"
+#include "hw.h"
 #include "web_assets.h"
 
 static WebServer server(80);
@@ -77,6 +78,8 @@ void Net::loadSettings() {
   tzStr = netPrefs.getString("tz", DEFAULT_TZ);
   brightness = netPrefs.getUChar("bl", BACKLIGHT_DAY);
   rotation = netPrefs.getUChar("rot", 1) & 3;
+  host = netPrefs.getString("host", MDNS_HOST);
+  nightDim = netPrefs.getBool("ndim", true);
 }
 
 void Net::begin(Pet *p) {
@@ -95,7 +98,7 @@ void Net::startSta() {
   apMode = false;
   connected = false;
   WiFi.mode(WIFI_STA);
-  WiFi.setHostname(MDNS_HOST);
+  WiFi.setHostname(host.c_str());
   WiFi.begin(staSsid.c_str(), staPass.c_str());
   connectStartMs = millis();
   Serial.printf("[net] connecting to %s\n", staSsid.c_str());
@@ -117,7 +120,7 @@ void Net::onConnected() {
   connected = true;
   Serial.printf("[net] connected, IP %s\n", WiFi.localIP().toString().c_str());
   if (pet) pet->logEvent("WiFi up: %s", WiFi.localIP().toString().c_str());
-  if (!mdnsStarted && MDNS.begin(MDNS_HOST)) {
+  if (!mdnsStarted && MDNS.begin(host.c_str())) {
     MDNS.addService("http", "tcp", 80);
     MDNS.addServiceTxt("http", "tcp", "device", "espgotchi");
     mdnsStarted = true;
@@ -179,6 +182,7 @@ NetInfo Net::info() const {
     strlcpy(n.ssid, WiFi.softAPSSID().c_str(), sizeof(n.ssid));
     strlcpy(n.ip, WiFi.softAPIP().toString().c_str(), sizeof(n.ip));
   }
+  strlcpy(n.host, host.c_str(), sizeof(n.host));
   return n;
 }
 
@@ -201,6 +205,21 @@ void Net::setTz(const char *tz) {
 }
 
 String Net::tz() const { return tzStr; }
+
+bool Net::setHostname(const char *name) {
+  if (!name) return false;
+  size_t n = strlen(name);
+  if (n < 1 || n > 24 || name[0] == '-' || name[n - 1] == '-') return false;
+  String clean;
+  for (size_t i = 0; i < n; i++) {
+    char c = tolower((unsigned char)name[i]);
+    if (!(isalnum((unsigned char)c) || c == '-')) return false;
+    clean += c;
+  }
+  host = clean;
+  netPrefs.putString("host", host);
+  return true;
+}
 
 // ---------- HTTP API ----------
 static void sendJson(JsonDocument &doc, int code = 200) {
@@ -280,11 +299,19 @@ void Net::setupRoutes() {
   server.on("/api/info", HTTP_GET, []() {
     JsonDocument doc;
     doc["ok"] = true;
-    doc["board"] = "Waveshare ESP32-C6-LCD-1.47";
+    doc["board"] = BOARD_NAME;
+    doc["boardId"] = BOARD_ID;
+    doc["touch"] = HAS_TOUCH != 0;
+    if (hwHasBattery()) {
+      doc["batteryMv"] = hwBatteryMv();
+      doc["batteryPct"] = hwBatteryPct();
+    }
     doc["fw"] = FW_VERSION;
     doc["chip"] = ESP.getChipModel();
     doc["freeHeap"] = ESP.getFreeHeap();
-    doc["mdns"] = String(MDNS_HOST) + ".local";
+    doc["hostname"] = self->host;
+    doc["mdns"] = self->host + ".local";
+    doc["nightDim"] = self->nightDim;
     doc["tz"] = self->tz();
     doc["brightness"] = self->brightness;
     doc["backlightDuty"] = ledcRead(PIN_LCD_BL);
@@ -351,7 +378,16 @@ void Net::setupRoutes() {
       self->brightness = constrain((int)body["brightness"], 5, 255);
       netPrefs.putUChar("bl", self->brightness);
     }
+    if (!body["nightDim"].isNull()) {
+      self->nightDim = (bool)body["nightDim"];
+      netPrefs.putBool("ndim", self->nightDim);
+    }
     bool reboot = false;
+    if (!body["hostname"].isNull()) {
+      String before = self->host;
+      if (!self->setHostname(body["hostname"])) return sendError("hostname must be 1-24 chars of a-z, 0-9 or '-'");
+      if (self->host != before) reboot = true;  // WiFi hostname and mDNS are set at connect time
+    }
     if (!body["orientation"].isNull()) {
       const char *o = body["orientation"];
       uint8_t rot = !strcmp(o, "portrait") ? 0 : !strcmp(o, "portrait-flipped") ? 2 : !strcmp(o, "landscape-flipped") ? 3 : 1;
@@ -365,6 +401,8 @@ void Net::setupRoutes() {
     doc["ok"] = true;
     doc["tz"] = self->tz();
     doc["brightness"] = self->brightness;
+    doc["hostname"] = self->host;
+    doc["nightDim"] = self->nightDim;
     doc["rebooting"] = reboot;
     sendJson(doc);
     if (reboot) self->restartRequested = true;

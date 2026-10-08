@@ -8,7 +8,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 
 const REQUEST_TIMEOUT_MS = 5000;
-const SPECIES = ["kawaii", "alien", "dino", "edge", "ghost", "pumpkin"];
+const SPECIES = ["kawaii", "alien", "dino", "edge", "ghost", "pumpkin", "mimi", "momo", "pingo"];
 
 // ---------------------------------------------------------------------------
 // Board address
@@ -157,7 +157,7 @@ const MOOD_EMOJI = {
   happy: "😊", neutral: "😐", sad: "😢", angry: "😠", sick: "🤒", asleep: "😴", sleeping: "😴",
   hungry: "😋", dead: "💀", egg: "🥚", excited: "🤩", bored: "😑",
 };
-const SPECIES_EMOJI = { kawaii: "🐣", alien: "👾", dino: "🦖", edge: "🤖", ghost: "👻", pumpkin: "🎃" };
+const SPECIES_EMOJI = { kawaii: "🐣", alien: "👾", dino: "🦖", edge: "🤖", ghost: "👻", pumpkin: "🎃", mimi: "🎀", momo: "🐰", pingo: "🐧" };
 
 function renderScreen(pet) {
   const lines = [];
@@ -276,7 +276,7 @@ server.registerTool("new_egg", {
     "DESTRUCTIVE: erases the current pet and starts a new egg (next generation). Only use when the pet is dead and the human has explicitly agreed. " +
     "Requires confirm=true. Optionally choose the species.",
   inputSchema: {
-    species: z.enum(SPECIES).optional().describe("Species of the new egg: kawaii, alien, dino, edge, or the Halloween special edition ghost (Boo) or pumpkin (Jack). Random/default if omitted."),
+    species: z.enum(SPECIES).optional().describe("Species of the new egg: kawaii, alien, dino, edge, the Halloween special edition ghost (Boo) or pumpkin (Jack), or the Cute edition mimi (cat with a bow), momo (bunny with a flower) or pingo (penguin with a scarf). Random/default if omitted."),
     confirm: z.literal(true).describe("Must be true. Acknowledges that the current pet will be erased."),
   },
   annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
@@ -301,18 +301,21 @@ server.registerTool("rename", {
 
 server.registerTool("set_settings", {
   title: "Set board settings",
-  description: "Change the board's timezone (POSIX TZ string, e.g. CST6CDT,M4.1.0,M10.5.0) and/or screen brightness (5..255).",
+  description: "Change the board's timezone (POSIX TZ string, e.g. CST6CDT,M4.1.0,M10.5.0), screen brightness (5..255) and/or mDNS hostname (reboots the board; useful when two boards share a network).",
   inputSchema: {
     tz: z.string().min(1).max(64).optional().describe("POSIX TZ string used for the clock and night mode."),
     brightness: z.number().int().min(5).max(255).optional().describe("Screen backlight, 5 (dim) to 255 (full)."),
+    hostname: z.string().regex(/^[a-z0-9]([a-z0-9-]{0,22}[a-z0-9])?$/).optional().describe("mDNS name without .local, 1-24 chars of a-z 0-9 '-'. The board reboots and answers at <hostname>.local."),
   },
   annotations: { ...careAction, idempotentHint: true },
-}, guarded(async ({ tz, brightness }) => {
+}, guarded(async ({ tz, brightness, hostname }) => {
   const body = {};
   if (tz !== undefined) body.tz = tz;
   if (brightness !== undefined) body.brightness = brightness;
-  if (Object.keys(body).length === 0) return failure(new Error("Nothing to change: pass tz and/or brightness."));
-  await request("/api/settings", { method: "POST", body });
+  if (hostname !== undefined) body.hostname = hostname;
+  if (Object.keys(body).length === 0) return failure(new Error("Nothing to change: pass tz, brightness and/or hostname."));
+  const r = await request("/api/settings", { method: "POST", body });
+  if (r.rebooting) return json({ applied: true, settings: body, rebooting: true, note: `The board is rebooting; reach it at http://${hostname}.local/ in a few seconds.` });
   return json({ applied: true, settings: body, info: await getInfo() });
 }));
 

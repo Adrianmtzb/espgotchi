@@ -64,7 +64,7 @@ En `claude_desktop_config.json`:
 | `toggle_lights` | Apagar o encender la luz (para que duerma o se despierte) |
 | `new_egg` | **Borra el pet** y empieza con un huevo nuevo; exige `confirm: true` y admite `species` |
 | `rename` | Cambiar el nombre (hasta 15 caracteres) |
-| `set_settings` | Zona horaria (`tz`, cadena POSIX) y brillo (`brightness`, 5..255) |
+| `set_settings` | Zona horaria (`tz`, cadena POSIX), brillo (`brightness`, 5..255) y hostname mDNS (`hostname`, reinicia la placa) |
 
 Cada acción devuelve `applied` (si la placa la aceptó), el motivo si no, el nuevo estado y los
 consejos actualizados.

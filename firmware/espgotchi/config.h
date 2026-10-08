@@ -1,22 +1,27 @@
 #pragma once
-// Waveshare ESP32-C6-LCD-1.47 pinout (from the official wiki + schematic)
-#define PIN_LCD_MOSI 6
-#define PIN_LCD_SCLK 7
-#define PIN_LCD_CS 14
-#define PIN_LCD_DC 15
-#define PIN_LCD_RST 21
-#define PIN_LCD_BL 22
-#define PIN_SD_MISO 5
-#define PIN_SD_CS 4
-#define PIN_RGB_LED 8   // WS2812B
-#define PIN_BOOT_BTN 9  // "BOOT" key, active low, 10K pull-up on board
+#include <sdkconfig.h>  // CONFIG_IDF_TARGET_* comes from the core
 
-// Panel: ST7789, 172x320 native, column offset 34. We use it in landscape.
-#define LCD_NATIVE_W 172
-#define LCD_NATIVE_H 320
-#define LCD_COL_OFFSET 34
-#define SCREEN_W 320
-#define SCREEN_H 172
+// Board selection: one header per supported board, picked by the compiler target so the same
+// sketch builds for every board with nothing more than the right FQBN (see the Makefile).
+#if defined(CONFIG_IDF_TARGET_ESP32C6)
+#include "boards/c6_lcd147.h"
+#elif defined(CONFIG_IDF_TARGET_ESP32S3)
+#include "boards/s3_touch169.h"
+#else
+#error "Unsupported target: add a header under boards/ and select it here"
+#endif
+
+// Offsets for the mirrored rotations default to the plain ones unless the board says otherwise.
+#ifndef LCD_COL_OFFSET2
+#define LCD_COL_OFFSET2 LCD_COL_OFFSET
+#endif
+#ifndef LCD_ROW_OFFSET2
+#define LCD_ROW_OFFSET2 LCD_ROW_OFFSET
+#endif
+
+// Logical screen size in landscape (rotation 1). Portrait swaps them at runtime.
+#define SCREEN_W LCD_NATIVE_H
+#define SCREEN_H LCD_NATIVE_W
 
 #define FW_VERSION "0.1.0"
 #define DEFAULT_PET_NAME "Pixel"

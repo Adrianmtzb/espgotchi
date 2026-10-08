@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -7,7 +7,20 @@
 <title>ESPgotchi</title>
 <!-- Search engines read this, not visitors: it cannot follow the language toggle,
      so it carries both languages on one line. -->
-<meta name="description" content="Mascota virtual libre para la Waveshare ESP32-C6-LCD-1.47: seis especies en pixel-art (dos de edición especial de Halloween), evoluciones, web servida por el propio chip. Se instala desde el navegador. — Open-source virtual pet for the Waveshare ESP32-C6-LCD-1.47: six pixel-art species (two of them a Halloween special edition), evolutions, a web panel served by the chip itself. Installs from your browser.">
+<meta name="description" content="Open-source virtual pet for the Waveshare ESP32-C6-LCD-1.47 and ESP32-S3-Touch-LCD-1.69: nine pixel-art species (Halloween and Cute editions included), evolutions, a web panel served by the chip itself. Installs from your browser. — Mascota virtual libre para la Waveshare ESP32-C6-LCD-1.47 y la ESP32-S3-Touch-LCD-1.69: nueve especies en pixel-art (con ediciones Halloween y Cute), evoluciones, web servida por el propio chip. Se instala desde el navegador.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="ESPgotchi">
+<meta property="og:title" content="ESPgotchi: a pixel pet that lives on a $15 ESP32 board">
+<meta property="og:description" content="Open-source virtual pet for two Waveshare ESP32 boards. Nine pixel-art species, evolutions, a web panel served by the chip itself. Installs from your browser.">
+<meta property="og:url" content="https://adrianmtzb.github.io/espgotchi/">
+<meta property="og:image" content="https://adrianmtzb.github.io/espgotchi/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="ESPgotchi title in pixel letters with the nine species lined up on their room colors">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="ESPgotchi: a pixel pet that lives on a $15 ESP32 board">
+<meta name="twitter:description" content="Open-source virtual pet for two Waveshare ESP32 boards. Nine pixel-art species, a web panel served by the chip itself. Installs from your browser.">
+<meta name="twitter:image" content="https://adrianmtzb.github.io/espgotchi/og.png">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'><rect width='16' height='16' rx='3' fill='%230b0d16'/><rect x='4' y='3' width='8' height='7' fill='%23ff5c8a'/><rect x='3' y='5' width='10' height='6' fill='%23ff5c8a'/><rect x='5' y='6' width='2' height='2' fill='%230b0d16'/><rect x='9' y='6' width='2' height='2' fill='%230b0d16'/><rect x='5' y='11' width='6' height='2' fill='%23ff5c8a'/></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -67,7 +80,7 @@ h1,h2,h3{text-wrap:balance;margin:0}
 .top{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding-block:1.1rem}
 .mark{display:flex;align-items:center;gap:.6rem;font:600 1.15rem/1 var(--display);letter-spacing:.02em}
 .mark canvas{width:28px;height:28px;image-rendering:pixelated}
-.top nav{display:flex;gap:.2rem;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.top nav{display:flex;gap:.2rem;align-items:center;flex-wrap:wrap;justify-content:flex-end;margin-left:auto}
 .top nav a{font-size:.86rem;color:var(--dim);text-decoration:none;padding:.4rem .7rem;border-radius:999px}
 .top nav a:hover{color:var(--fg);background:var(--bg-2)}
 #lang{font:inherit;font-size:.78rem;letter-spacing:.04em;cursor:pointer;color:var(--fg);
@@ -131,6 +144,47 @@ button[slot=activate]:hover,.btn:hover{transform:translateY(-1px)}
 .actions button:active{transform:translateY(1px)}
 .hint{font-size:.8rem;color:var(--mute);text-align:center;max-width:36ch}
 #log{font:.78rem/1.5 var(--mono);color:var(--dim);min-height:1.2em;text-align:center}
+
+/* ---- hardware: the two boards, drawn the same way as the one in the hero ---- */
+.hw{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(20rem,100%),1fr));gap:1.4rem}
+.hwcard{display:grid;gap:1rem;padding:1.2rem;border:1px solid var(--line);border-radius:18px;background:var(--panel);min-width:0}
+.hwcard h3{font:600 1.05rem var(--body)}
+.hwcard .sub{margin:.2rem 0 0;color:var(--dim);font-size:.9rem}
+.hwfig{display:grid;place-items:center;padding:1.2rem .6rem;border-radius:14px;background:var(--bg-2)}
+.hwboard{position:relative;display:grid;gap:4%;width:min(100%,11.5rem);border-radius:14px;padding:6% 7% 5%;
+  background:linear-gradient(160deg,#1c2238,#0d1020 60%,#0a0c18);
+  box-shadow:0 24px 50px -24px rgba(0,0,0,.8),inset 0 1px 0 rgba(255,255,255,.08),0 0 0 1px #222a44}
+.hwboard.c6{aspect-ratio:.55}
+.hwboard.s3{aspect-ratio:.6;width:min(100%,13rem)}
+.hwboard .hwscreen{position:relative;width:100%;overflow:hidden;background:#000;border-radius:6px;
+  box-shadow:inset 0 0 0 2px #05060c,0 0 0 3px #1a1f33,0 0 0 4px #0a0c18}
+.hwboard.c6 .hwscreen{aspect-ratio:172/320}
+.hwboard.s3 .hwscreen{aspect-ratio:240/280;border-radius:16%}
+.hwboard .hwscreen canvas{display:block;width:100%;height:100%;image-rendering:pixelated}
+.hwboard .hwscreen::before{content:"";position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(0deg,rgba(0,0,0,.09) 0 1px,transparent 1px 3px);mix-blend-mode:multiply}
+.hwboard .touch{position:absolute;right:14%;top:22%;width:18%;aspect-ratio:1;border-radius:50%;border:2px solid rgba(255,255,255,.75);
+  box-shadow:0 0 0 4px rgba(255,255,255,.18);animation:tap 2.4s ease-in-out infinite}
+@keyframes tap{0%,70%,100%{transform:scale(1);opacity:.9}80%{transform:scale(.6);opacity:1}}
+.hwboard .pcb{margin-top:0;padding-inline:0;align-items:end;gap:.35rem}
+.hwboard .key{gap:.25rem;min-width:0}
+.hwboard .key button{width:22px;height:22px;cursor:default}
+.hwboard .key .label{font-size:.46rem;letter-spacing:.04em}
+.hwboard .usb{width:30px;height:10px}
+.hwboard .led{width:9px;height:9px}
+.hwboard .buzz{width:18px;height:18px;border-radius:50%;background:#0a0c18;box-shadow:inset 0 0 0 3px #3b4262,0 0 0 1px #1a1f33;
+  background-image:radial-gradient(circle,#3b4262 1px,transparent 1.5px);background-size:4px 4px}
+.hwboard .bat{width:16px;height:10px;border-radius:2px;background:#f4e8c1;box-shadow:inset 0 0 0 2px #c9b982}
+.hwboard .pwr{position:absolute;right:-5px;top:28%;width:5px;height:16%;border-radius:0 3px 3px 0;background:#3b4262;box-shadow:inset 0 0 0 1px #1a1f33}
+dl.facts{display:grid;grid-template-columns:auto 1fr;gap:.3rem .9rem;margin:0;font-size:.88rem}
+dl.facts dt{font:600 .68rem/1.6 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--mute);white-space:nowrap}
+dl.facts dd{margin:0;color:var(--fg)}
+dl.facts dd small{color:var(--dim)}
+.hwcard details{border-top:1px solid var(--line);padding-top:.6rem}
+.hwcard summary{cursor:pointer;font:600 .72rem var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--dim)}
+.hwcard summary:hover{color:var(--accent)}
+.hwcard table{font-size:.82rem;margin-top:.4rem}
+.hwcard td,.hwcard th{padding:.45rem .4rem}
 
 /* species tabs */
 .species{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:.5rem;width:min(100%,34rem)}
@@ -275,7 +329,18 @@ td code{white-space:nowrap}
 .author .follow{display:flex;gap:.7rem;flex-wrap:wrap}
 .author .follow .btn{white-space:nowrap}
 @media (max-width:720px){.author .box{grid-template-columns:1fr}.author .follow{flex-direction:column;align-items:stretch}.author .follow .btn{text-align:center;white-space:normal}}
-@media (max-width:40rem){nav a[href^="https://adrianmb.dev"]{display:none}}
+/* Phones: the mark and the language button share the first row; the section links become one
+   strip that scrolls sideways instead of wrapping into a ragged right-aligned block. */
+@media (max-width:40rem){
+  .top{display:grid;grid-template-columns:1fr auto;row-gap:.5rem;padding-block:.9rem .6rem}
+  .top #lang{grid-row:1;grid-column:2}
+  .top nav{grid-row:2;grid-column:1/-1;flex-wrap:nowrap;justify-content:flex-start;margin:0 calc(-1*clamp(16px,4vw,2.5rem));padding-inline:clamp(16px,4vw,2.5rem);
+    overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;
+    mask-image:linear-gradient(90deg,#000 calc(100% - 2.5rem),transparent);-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 2.5rem),transparent)}
+  .top nav::-webkit-scrollbar{display:none}
+  .top nav a{white-space:nowrap;padding:.35rem .6rem}
+  nav a[href^="https://adrianmb.dev"]{display:none}
+}
 footer{padding-block:2.2rem 3.5rem;border-top:1px solid var(--line);font-size:.84rem;color:var(--dim)}
 footer .wrap{display:grid;gap:.8rem}
 footer p{margin:0;max-width:70ch}
@@ -289,23 +354,24 @@ footer p{margin:0;max-width:70ch}
     <a href="#web" lang="es">Panel web</a><a href="#web" lang="en">Web panel</a>
     <a href="#species" lang="es">Especies</a><a href="#species" lang="en">Species</a>
     <a href="#care" lang="es">Cuidados</a><a href="#care" lang="en">Care</a>
+    <a href="#hardware">Hardware</a>
     <a href="#install" lang="es">Instalar</a><a href="#install" lang="en">Install</a>
     <a href="#inside" lang="es">Por dentro</a><a href="#inside" lang="en">Inside</a>
     <a href="https://github.com/Adrianmtzb/espgotchi">GitHub</a>
     <a href="https://adrianmb.dev/">adrianmb.dev</a>
-    <button id="lang" type="button" hidden>English</button>
   </nav>
+  <button id="lang" type="button" hidden>English</button>
 </header>
 
 <main>
 <div class="wrap hero">
   <div>
-    <p class="eyebrow">Waveshare ESP32-C6-LCD-1.47 · open source · MIT</p>
+    <p class="eyebrow">Waveshare ESP32-C6-LCD-1.47 · ESP32-S3-Touch-LCD-1.69 · open source · MIT</p>
     <h1 style="margin-top:.8rem"><span lang="es">Una mascota que <em>vive</em> en 172 × 320 píxeles.</span><span lang="en">A pet that <em>lives</em> in 172 × 320 pixels.</span></h1>
-    <p class="lede" lang="es">Seis especies en pixel-art, cinco etapas de evolución y un carácter que depende de cómo
+    <p class="lede" lang="es">Nueve especies en pixel-art, cinco etapas de evolución y un carácter que depende de cómo
       la cuides. Corre en una placa de <b>menos de 15 €</b> con un solo botón, y el propio chip sirve el panel
       para cuidarla desde el móvil.</p>
-    <p class="lede" lang="en">Six pixel-art species, five evolution stages and a personality shaped by how you look
+    <p class="lede" lang="en">Nine pixel-art species, five evolution stages and a personality shaped by how you look
       after it. Runs on a board that costs <b>under $15</b>, with a single button, and the chip itself serves the panel
       you care for it from.</p>
     <div class="cta">
@@ -315,17 +381,17 @@ footer p{margin:0;max-width:70ch}
         <span slot="not-allowed"></span>
       </esp-web-install-button>
       <a class="btn ghost" href="https://github.com/Adrianmtzb/espgotchi"><span lang="es">Ver el código</span><span lang="en">View the code</span></a>
-      <p class="req" lang="es"><b id="ver">v…</b>Chrome o Edge de escritorio, con la placa por USB. Nada pasa por un servidor.</p>
-      <p class="req" lang="en"><b id="ver-en">v…</b>Desktop Chrome or Edge, board plugged in over USB. Nothing goes through a server.</p>
+      <p class="req" lang="es"><b id="ver">v…</b>Chrome o Edge de escritorio, con la placa por USB. Detecta si es la C6 o la S3 e instala el build que toca. Nada pasa por un servidor.</p>
+      <p class="req" lang="en"><b id="ver-en">v…</b>Desktop Chrome or Edge, board plugged in over USB. It detects whether it is the C6 or the S3 and installs the matching build. Nothing goes through a server.</p>
     </div>
     <p class="nope" lang="es">Este navegador no tiene Web Serial. Abre la página en Chrome o Edge de escritorio, o compila
       el firmware con <code>make flash</code>.</p>
     <p class="nope" lang="en">This browser has no Web Serial. Open the page in desktop Chrome or Edge, or build the
       firmware yourself with <code>make flash</code>.</p>
     <div class="specs">
-      <div><b>6</b><span lang="es">especies</span><span lang="en">species</span></div>
+      <div><b id="n-species">9</b><span lang="es">especies</span><span lang="en">species</span></div>
       <div><b>6</b><span lang="es">etapas</span><span lang="en">stages</span></div>
-      <div><b>154</b>sprites</div>
+      <div><b id="n-sprites">157</b>sprites</div>
       <div><b>1</b><span lang="es">botón</span><span lang="en">button</span></div>
       <div><b>0</b><span lang="es">apps que instalar</span><span lang="en">apps to install</span></div>
     </div>
@@ -467,12 +533,14 @@ footer p{margin:0;max-width:70ch}
         tres formas adultas. Con un error de cuidado o menos, salud alta y buen ánimo sale la forma
         <b>elite</b>. Con cinco errores o la salud por los suelos, la <b>feral</b>. El resto, el adulto normal.
         Los dormidos no están dibujados: se generan cerrando los ojos del sprite despierto.
-        <b>Boo</b> y <b>Jack</b> son la edición especial de Halloween: un fantasma y una calabaza que evolucionan igual que el resto.</p>
+        <b>Boo</b> y <b>Jack</b> son la edición especial de Halloween: un fantasma y una calabaza que evolucionan igual que el resto.
+        <b>Mimi</b>, <b>Momo</b> y <b>Pingo</b> son la edición Cute: una gatita, una conejita y un pingüino con paletas pastel y un accesorio cada uno.</p>
       <p lang="en">Each species has its own egg, its baby, child, teen and adult frames, and three adult forms.
         One care mistake or fewer, high health and good mood gets you the <b>elite</b> form. Five mistakes or
         rock-bottom health, the <b>feral</b> one. Everything else, the regular adult. Sleeping frames are not
         drawn by hand: they are generated by closing the eyes of the awake sprite.
-        <b>Boo</b> and <b>Jack</b> are the Halloween special edition: a ghost and a pumpkin that evolve like everyone else.</p>
+        <b>Boo</b> and <b>Jack</b> are the Halloween special edition: a ghost and a pumpkin that evolve like everyone else.
+        <b>Mimi</b>, <b>Momo</b> and <b>Pingo</b> are the Cute edition: a kitten, a bunny and a penguin in pastel palettes, each with its own accessory.</p>
     </div>
     <div class="evo" id="evo"></div>
   </div>
@@ -526,7 +594,8 @@ footer p{margin:0;max-width:70ch}
       <h2 lang="es">La placa trae un botón libre. Con eso basta.</h2>
       <h2 lang="en">The board has one free button. That is enough.</h2>
       <p lang="es">RST reinicia el chip y no se puede programar, así que todo pasa por BOOT. El LED WS2812 cuenta
-        el humor y confirma cada orden, venga del botón, de la web o del puerto serie.</p>
+        el humor y confirma cada orden, venga del botón, de la web o del puerto serie. En la ESP32-S3-Touch-LCD-1.69
+        además se toca: un tap sobre un icono lo ejecuta, un swipe recorre el menú y el zumbador sustituye al LED.</p>
       <p lang="en">RST resets the chip and cannot be programmed, so everything goes through BOOT. The WS2812 LED
         tells the mood and acknowledges every command, whether it came from the button, the web or serial.</p>
     </div>
@@ -551,6 +620,102 @@ footer p{margin:0;max-width:70ch}
           <li><i style="--c:#4d6cff;opacity:.6"></i><span lang="es">Azul tenue dormido, blanco huevo, violeta muerto.</span><span lang="en">Dim blue asleep, white as an egg, violet when gone.</span></li>
         </ul>
       </div>
+    </div>
+  </div>
+</section>
+
+<section id="hardware">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="eyebrow">Hardware</p>
+      <h2 lang="es">Dos placas de Waveshare, un solo firmware.</h2>
+      <h2 lang="en">Two Waveshare boards, one firmware.</h2>
+      <p lang="es">Las dos llevan un ESP32 con pantalla ST7789 por SPI y USB-C para flashear. El compilador elige el
+        pinout por el chip, y lo que una placa no tiene (táctil, zumbador, batería, LED) simplemente no aparece.
+        Las ilustraciones son esquemáticas: la posición de cada cosa es orientativa.</p>
+      <p lang="en">Both carry an ESP32 with an SPI ST7789 display and USB-C for flashing. The compiler picks the pinout
+        from the chip, and whatever a board lacks (touch, buzzer, battery, LED) simply does not show up.
+        The drawings are schematic: where each part sits is approximate.</p>
+    </div>
+    <div class="hw">
+      <article class="hwcard">
+        <div>
+          <h3>Waveshare ESP32-C6-LCD-1.47</h3>
+          <p class="sub" lang="es">La placa original: un botón, un LED y mucha pantalla por menos de 15 €.</p>
+          <p class="sub" lang="en">The original board: one button, one LED and a lot of screen for under $15.</p>
+        </div>
+        <div class="hwfig">
+          <div class="hwboard c6" aria-label="ESP32-C6-LCD-1.47, schematic drawing">
+            <div class="hwscreen"><canvas data-hw="c6" width="172" height="320"></canvas></div>
+            <div class="pcb">
+              <div class="key"><span class="led" style="--led:#ff5c8a"></span><span class="label">LED</span></div>
+              <div class="key"><button type="button" disabled aria-label="BOOT"></button><span class="label">BOOT</span></div>
+              <div class="key"><button type="button" disabled aria-label="RST"></button><span class="label">RST</span></div>
+              <div class="key"><span class="usb"></span><span class="label">USB-C</span></div>
+            </div>
+          </div>
+        </div>
+        <dl class="facts">
+          <dt>SoC</dt><dd>ESP32-C6FH4 <small lang="es">· RISC-V a 160 MHz, 4 MB de flash, sin PSRAM</small><small lang="en">· RISC-V at 160 MHz, 4 MB flash, no PSRAM</small></dd>
+          <dt lang="es">Radio</dt><dt lang="en">Radio</dt><dd>WiFi 6 (2.4 GHz), BLE 5, 802.15.4</dd>
+          <dt lang="es">Pantalla</dt><dt lang="en">Display</dt><dd>1.47" IPS, 172 × 320, ST7789 <small lang="es">· SPI a 80 MHz, backlight PWM</small><small lang="en">· SPI at 80 MHz, PWM backlight</small></dd>
+          <dt lang="es">Entrada</dt><dt lang="en">Input</dt><dd><span lang="es">Botón BOOT: toque, doble toque, pulsación larga</span><span lang="en">BOOT button: tap, double tap, long press</span></dd>
+          <dt>Feedback</dt><dd><span lang="es">LED WS2812 (parpadeos por acción, celebración al evolucionar)</span><span lang="en">WS2812 LED (flashes per action, celebration on evolution)</span></dd>
+          <dt lang="es">Alimentación</dt><dt lang="en">Power</dt><dd>USB-C</dd>
+        </dl>
+        <details>
+          <summary><span lang="es">Pines que usa el firmware</span><span lang="en">Pins the firmware uses</span></summary>
+          <div class="scroll"><table>
+            <tr><th lang="es">Función</th><th lang="en">Function</th><th>GPIO</th><th lang="es">Notas</th><th lang="en">Notes</th></tr>
+            <tr><td>LCD ST7789 172×320</td><td>6 7 14 15 21</td><td lang="es">SPI 80 MHz, offset de columna 34, INVON</td><td lang="en">SPI 80 MHz, column offset 34, INVON</td></tr>
+            <tr><td>Backlight</td><td>22</td><td lang="es">MOSFET, PWM 5 kHz</td><td lang="en">MOSFET, 5 kHz PWM</td></tr>
+            <tr><td>LED WS2812</td><td>8</td><td><code>rgbLedWrite</code></td></tr>
+            <tr><td>BOOT</td><td>9</td><td lang="es">activo bajo, pull-up en placa</td><td lang="en">active low, on-board pull-up</td></tr>
+            <tr><td>USB</td><td>—</td><td lang="es">USB-Serial-JTAG nativo del C6</td><td lang="en">C6 native USB-Serial-JTAG</td></tr>
+          </table></div>
+        </details>
+      </article>
+      <article class="hwcard">
+        <div>
+          <h3>Waveshare ESP32-S3-Touch-LCD-1.69</h3>
+          <p class="sub" lang="es">Pantalla táctil con esquinas redondeadas, zumbador y batería: el pet se va de paseo.</p>
+          <p class="sub" lang="en">Rounded touch screen, buzzer and battery: the pet gets to leave the desk.</p>
+        </div>
+        <div class="hwfig">
+          <div class="hwboard s3" aria-label="ESP32-S3-Touch-LCD-1.69, schematic drawing">
+            <div class="hwscreen"><canvas data-hw="s3" width="240" height="280"></canvas><span class="touch" aria-hidden="true"></span></div>
+            <span class="pwr" aria-hidden="true"></span>
+            <div class="pcb">
+              <div class="key"><span class="buzz"></span><span class="label">BUZZ</span></div>
+              <div class="key"><button type="button" disabled aria-label="BOOT"></button><span class="label">BOOT</span></div>
+              <div class="key"><span class="bat"></span><span class="label">BAT</span></div>
+              <div class="key"><span class="usb"></span><span class="label">USB-C</span></div>
+            </div>
+          </div>
+        </div>
+        <dl class="facts">
+          <dt>SoC</dt><dd>ESP32-S3R8 <small lang="es">· dos núcleos a 240 MHz, 16 MB de flash, 8 MB de PSRAM</small><small lang="en">· dual core at 240 MHz, 16 MB flash, 8 MB PSRAM</small></dd>
+          <dt lang="es">Radio</dt><dt lang="en">Radio</dt><dd>WiFi (2.4 GHz), BLE 5</dd>
+          <dt lang="es">Pantalla</dt><dt lang="en">Display</dt><dd>1.69" IPS, 240 × 280, ST7789V2 <small lang="es">· cristal con esquinas de ~48 px de radio; la UI lo tiene en cuenta</small><small lang="en">· glass with ~48 px rounded corners; the UI accounts for them</small></dd>
+          <dt lang="es">Entrada</dt><dt lang="en">Input</dt><dd><span lang="es">Táctil CST816 (toque, swipe, pulsación larga), botón BOOT, botón PWR</span><span lang="en">CST816 touch (tap, swipe, long press), BOOT button, PWR button</span></dd>
+          <dt>Feedback</dt><dd><span lang="es">Zumbador: una melodía por acción, mordidas al comer, arranque y apagado</span><span lang="en">Buzzer: a tune per action, bites while eating, power on and off</span></dd>
+          <dt lang="es">Alimentación</dt><dt lang="en">Power</dt><dd><span lang="es">USB-C o LiPo por conector de batería, con cargador en placa; nivel en pantalla y en la API</span><span lang="en">USB-C or a LiPo on the battery connector, charger on board; level on screen and in the API</span></dd>
+          <dt lang="es">También lleva</dt><dt lang="en">Also on board</dt><dd><span lang="es">IMU QMI8658 y RTC PCF85063, sin usar de momento</span><span lang="en">QMI8658 IMU and PCF85063 RTC, unused for now</span></dd>
+        </dl>
+        <details>
+          <summary><span lang="es">Pines que usa el firmware</span><span lang="en">Pins the firmware uses</span></summary>
+          <div class="scroll"><table>
+            <tr><th lang="es">Función</th><th lang="en">Function</th><th>GPIO</th><th lang="es">Notas</th><th lang="en">Notes</th></tr>
+            <tr><td>LCD ST7789V2 240×280</td><td>7 6 5 4 8</td><td lang="es">SPI, offset de 20 filas, INVON</td><td lang="en">SPI, 20-row offset, INVON</td></tr>
+            <tr><td>Backlight</td><td>15</td><td lang="es">PWM 5 kHz</td><td lang="en">5 kHz PWM</td></tr>
+            <tr><td lang="es">Táctil CST816</td><td lang="en">CST816 touch</td><td>11 10 13 14</td><td lang="es">I2C 0x15, tap / swipe / pulsación larga</td><td lang="en">I2C 0x15, tap / swipe / long press</td></tr>
+            <tr><td lang="es">Zumbador</td><td lang="en">Buzzer</td><td>42</td><td lang="es">sustituye al LED</td><td lang="en">stands in for the LED</td></tr>
+            <tr><td lang="es">Batería</td><td lang="en">Battery</td><td>1</td><td lang="es">ADC ×3, indicador en pantalla y API</td><td lang="en">ADC ×3, gauge on screen and API</td></tr>
+            <tr><td>PWR</td><td>40 / 41</td><td lang="es">SYS_OUT lee la tecla, SYS_EN mantiene la batería; 2 s apaga</td><td lang="en">SYS_OUT reads the key, SYS_EN latches the battery; 2 s powers off</td></tr>
+            <tr><td>BOOT</td><td>0</td><td lang="es">mismos gestos que en la C6</td><td lang="en">same gestures as on the C6</td></tr>
+          </table></div>
+        </details>
+      </article>
     </div>
   </div>
 </section>
@@ -587,16 +752,6 @@ cd espgotchi
 make deps     <span lang="es" class="inl"># core esp32 3.2.0 + librerías fijadas</span><span lang="en" class="inl"># esp32 core 3.2.0 + pinned libraries</span>
 make flash    <span lang="es" class="inl"># genera assets, compila y sube</span><span lang="en" class="inl"># generates assets, compiles, uploads</span>
 make monitor  <span lang="es" class="inl"># consola serie, escribe 'help'</span><span lang="en" class="inl"># serial console, type 'help'</span></code></pre>
-        <div class="scroll" style="margin-top:1rem">
-        <table>
-          <tr><th lang="es">Función</th><th lang="en">Function</th><th>GPIO</th><th lang="es">Notas</th><th lang="en">Notes</th></tr>
-          <tr><td>LCD ST7789 172×320</td><td>6 7 14 15 21</td><td lang="es">SPI 80 MHz, offset de columna 34, INVON</td><td lang="en">SPI 80 MHz, column offset 34, INVON</td></tr>
-          <tr><td>Backlight</td><td>22</td><td lang="es">MOSFET, PWM 5 kHz</td><td lang="en">MOSFET, 5 kHz PWM</td></tr>
-          <tr><td>LED WS2812</td><td>8</td><td><code>rgbLedWrite</code></td></tr>
-          <tr><td>BOOT</td><td>9</td><td lang="es">activo bajo, pull-up en placa</td><td lang="en">active low, on-board pull-up</td></tr>
-          <tr><td>USB</td><td>—</td><td lang="es">USB-Serial-JTAG nativo del C6</td><td lang="en">C6 native USB-Serial-JTAG</td></tr>
-        </table>
-        </div>
       </div>
     </div>
   </div>
@@ -657,8 +812,8 @@ make monitor  <span lang="es" class="inl"># consola serie, escribe 'help'</span>
     <canvas id="authorMark" width="16" height="16" aria-hidden="true"></canvas>
     <div>
       <p class="eyebrow" lang="es">Quién hay detrás</p><p class="eyebrow" lang="en">Who is behind this</p>
-      <h2 lang="es">Hecho por Adrián. Si te gusta ESPgotchi, hay más.</h2>
-      <h2 lang="en">Made by Adrián. If you like ESPgotchi, there is more.</h2>
+      <h2 lang="es">Hecho por adrianmb. Si te gusta ESPgotchi, hay más.</h2>
+      <h2 lang="en">Made by adrianmb. If you like ESPgotchi, there is more.</h2>
       <p lang="es">Firmware para placas baratas, herramientas pequeñas y proyectos de software libre, con la misma manía por los detalles. Todo sale primero en adrianmb.dev.</p>
       <p lang="en">Firmware for cheap boards, small tools and free-software projects, with the same obsession for detail. Everything lands first on adrianmb.dev.</p>
     </div>
@@ -676,10 +831,10 @@ make monitor  <span lang="es" class="inl"># consola serie, escribe 'help'</span>
   <div class="wrap">
     <p lang="es"><b>ESPgotchi</b> es software libre bajo licencia MIT. El código, los sprites y esta página están en
       <a href="https://github.com/Adrianmtzb/espgotchi">GitHub</a>; las contribuciones son bienvenidas.
-      Hecho por <a href="https://adrianmb.dev/">Adrián</a>.</p>
+      Hecho por <a href="https://adrianmb.dev/">adrianmb</a>.</p>
     <p lang="en"><b>ESPgotchi</b> is free software under the MIT license. The code, the sprites and this page live on
       <a href="https://github.com/Adrianmtzb/espgotchi">GitHub</a>; contributions are welcome.
-      Made by <a href="https://adrianmb.dev/">Adrián</a>.</p>
+      Made by <a href="https://adrianmb.dev/">adrianmb</a>.</p>
     <p lang="es">Waveshare es una marca de su titular y se menciona solo para identificar la placa compatible. Este
       proyecto no está afiliado a Waveshare ni a Bandai. Las fuentes FreeSans embebidas son de Adafruit GFX (BSD).</p>
     <p lang="en">Waveshare is a trademark of its owner and is mentioned only to identify the compatible board. This
@@ -691,8 +846,8 @@ make monitor  <span lang="es" class="inl"># consola serie, escribe 'help'</span>
 /* ---------- language ---------- */
 (function () {
   const btn = document.getElementById('lang');
-  let lang = 'es';
-  try { lang = localStorage.getItem('espgotchi-lang') || (navigator.language.startsWith('es') ? 'es' : 'en'); } catch (e) {}
+  let lang = 'en';  // English first; the toggle remembers the visitor's choice
+  try { lang = localStorage.getItem('espgotchi-lang') || 'en'; } catch (e) {}
   const apply = l => { document.documentElement.lang = l; btn.textContent = l === 'es' ? 'English' : 'Español'; };
   apply(lang); btn.hidden = false;
   btn.onclick = () => { lang = lang === 'es' ? 'en' : 'es'; apply(lang); try { localStorage.setItem('espgotchi-lang', lang); } catch (e) {} };
@@ -967,6 +1122,7 @@ function loop(now) {
 /* ---------- species tabs, theme and evolution strips ---------- */
 const tabs = document.getElementById('species-tabs'), evo = document.getElementById('evo');
 function setSpecies(key) {
+  queueMicrotask(() => { if (sheet) buildHardware(); });
   pet.species = key;
   const t = sheet.species[key];
   document.documentElement.style.setProperty('--accent', t.accent);
@@ -974,16 +1130,38 @@ function setSpecies(key) {
   for (const r of evo.children) r.toggleAttribute('data-active', r.dataset.key === key);
   try { localStorage.setItem('espgotchi-species', key); } catch (e) {}
 }
+// The two board drawings in the hardware section show the real firmware layout in portrait:
+// the room on top, the five stat rows below, with the species the visitor picked.
+function buildHardware() {
+  for (const c of document.querySelectorAll('canvas[data-hw]')) {
+    const key = document.querySelector('.species button.active')?.dataset.key || 'kawaii';
+    const t = sheet.species[key] || sheet.species.kawaii, cx = c.getContext('2d'), W = c.width, H = c.height;
+    cx.fillStyle = '#1a1a2e'; cx.fillRect(0, 0, W, H);
+    cx.fillStyle = t.bg; cx.fillRect(6, 30, W - 12, Math.min(150, H - 160));
+    cx.fillStyle = t.bg2; cx.fillRect(6, 30 + Math.min(150, H - 160) - 30, W - 12, 30);
+    const sc = 4, sx = Math.floor((W - 24 * sc) / 2), sy = 30 + Math.min(150, H - 160) - 30 - 24 * sc + 6;
+    cx.fillStyle = 'rgba(0,0,0,.18)'; cx.beginPath(); cx.ellipse(W / 2, sy + 24 * sc - 2, 10 * sc, 3, 0, 0, Math.PI * 2); cx.fill();
+    drawSprite(cx, `${key}_adult_0`, sx, sy, sc);
+    cx.fillStyle = '#f1efe8'; cx.fillRect(10, 10, 46, 8); cx.fillStyle = t.accent; cx.fillRect(W - 30, 10, 20, 8);
+    const rows = 5, rowH = Math.floor((H - (30 + Math.min(150, H - 160) + 12) - 3) / rows);
+    for (let i = 0; i < rows; i++) {
+      const y = 30 + Math.min(150, H - 160) + 12 + i * rowH + Math.floor(rowH / 2) - 3;
+      cx.fillStyle = '#2a3050'; cx.fillRect(14, y, W - 28, 6);
+      cx.fillStyle = i < 3 ? '#4fd27a' : t.accent; cx.fillRect(14, y, Math.round((W - 28) * (0.55 + 0.1 * ((i * 7) % 4))), 6);
+    }
+  }
+}
 function buildSpecies() {
-  const seasonTag = (short) => { const t = document.createElement('span'); t.className = 'season'; const es = document.createElement('span'); es.lang = 'es'; es.textContent = short ? 'Halloween' : 'Edición especial Halloween'; const en = document.createElement('span'); en.lang = 'en'; en.textContent = short ? 'Halloween' : 'Halloween special'; t.append(es, en); return t; };
+  const SEASONS = { halloween: { es: ['Halloween', 'Edición especial Halloween'], en: ['Halloween', 'Halloween special'], color: '#ff8c1a', ink: '#1a0f1f' }, cute: { es: ['Cute', 'Edición Cute'], en: ['Cute', 'Cute edition'], color: '#ff8fb1', ink: '#3a1f2a' } };
+  const seasonTag = (short, season) => { const d = SEASONS[season]; const t = document.createElement('span'); t.className = 'season'; t.style.background = d.color; t.style.color = d.ink; const es = document.createElement('span'); es.lang = 'es'; es.textContent = d.es[short ? 0 : 1]; const en = document.createElement('span'); en.lang = 'en'; en.textContent = d.en[short ? 0 : 1]; t.append(es, en); return t; };
   for (const [key, t] of Object.entries(sheet.species)) {
     const b = document.createElement('button'); b.type = 'button'; b.dataset.key = key; b.style.setProperty('--sp', t.accent);
-    b.append(spriteCanvas(`${key}_baby_0`, 48), document.createTextNode(t.label)); if (t.season === 'halloween') b.append(seasonTag(true)); b.onclick = () => setSpecies(key);
+    b.append(spriteCanvas(`${key}_baby_0`, 48), document.createTextNode(t.label)); if (SEASONS[t.season]) b.append(seasonTag(true, t.season)); b.onclick = () => setSpecies(key);
     tabs.append(b);
     const row = document.createElement('div'); row.className = 'row'; row.dataset.key = key; row.style.setProperty('--sp', t.accent);
-    const h = document.createElement('div'); const h3 = document.createElement('h3'); h3.textContent = t.label; if (t.season === 'halloween') h3.append(seasonTag(false)); h.append(h3);
+    const h = document.createElement('div'); const h3 = document.createElement('h3'); h3.textContent = t.label; if (SEASONS[t.season]) h3.append(seasonTag(false, t.season)); h.append(h3);
     const small = document.createElement('small'); const es = document.createElement('span'); es.lang = 'es'; const en = document.createElement('span'); en.lang = 'en';
-    const blurbs = { kawaii: ['Gatito pastel. Orejas, mejillas y mucho rosa.', 'Pastel kitten. Ears, blush and lots of pink.'], alien: ['Verde, antenas y ojos enormes.', 'Green, antennae and enormous eyes.'], dino: ['Crestas naranjas y colmillos amables.', 'Orange crests and friendly fangs.'], edge: ['Gato cyberpunk con visor de neón.', 'Cyberpunk cat with a neon visor.'], ghost: ['Fantasma de sábana con corona de adulto.', 'Sheet ghost that earns a crown as an adult.'], pumpkin: ['Calabaza tallada con sombrero de bruja.', 'Carved pumpkin that grows a witch hat.'] };
+    const blurbs = { kawaii: ['Gatito pastel. Orejas, mejillas y mucho rosa.', 'Pastel kitten. Ears, blush and lots of pink.'], alien: ['Verde, antenas y ojos enormes.', 'Green, antennae and enormous eyes.'], dino: ['Crestas naranjas y colmillos amables.', 'Orange crests and friendly fangs.'], edge: ['Gato cyberpunk con visor de neón.', 'Cyberpunk cat with a neon visor.'], ghost: ['Fantasma de sábana con corona de adulto.', 'Sheet ghost that earns a crown as an adult.'], pumpkin: ['Calabaza tallada con sombrero de bruja.', 'Carved pumpkin that grows a witch hat.'], mimi: ['Gatita blanca con lazo rojo y vestidito rosa.', 'White kitten with a red bow and a pink dress.'], momo: ['Conejita crema con una flor en la oreja.', 'Cream bunny with a flower on one ear.'], pingo: ['Pingüino con bufanda a rayas.', 'Penguin in a striped scarf.'] };
     es.textContent = (blurbs[key] || ['', ''])[0]; en.textContent = (blurbs[key] || ['', ''])[1]; small.append(es, en); h.append(small); row.append(h);
     const strip = document.createElement('div'); strip.className = 'strip';
     const cells = [['egg', 'egg · 1 min'], ['baby_0', 'baby · 30 min'], ['child_0', 'child · 2 h'], ['teen_0', 'teen · 8 h'], ['adult_0', 'adult · 48 h'], ['adult_elite_0', 'elite', 'alt'], ['adult_feral_0', 'feral', 'alt'], ['adult_elder_0', 'elder'], ['adult_sleep', 'asleep', 'alt']];
@@ -999,7 +1177,9 @@ function buildSpecies() {
 }
 
 fetch('sprites.json').then(r => r.json()).then(s => {
-  sheet = s; buildSpecies();
+  sheet = s; buildSpecies(); buildHardware();
+  document.getElementById('n-species').textContent = Object.keys(sheet.species).length;
+  document.getElementById('n-sprites').textContent = Object.keys(sheet.sprites).length;
   let start = 'kawaii'; try { start = localStorage.getItem('espgotchi-species') || start; } catch (e) {}
   setSpecies(sheet.species[start] ? start : 'kawaii');
   say('Pulsa BOOT para eclosionar', 'Press BOOT to hatch');

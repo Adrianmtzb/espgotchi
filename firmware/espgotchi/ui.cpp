@@ -3,12 +3,14 @@
 #include "fonts/FreeSans9pt7b.h"
 #include "fonts/FreeSansBold12pt7b.h"
 #include "config.h"
+#include "hw.h"
 #include "sprites.h"
 
 static Arduino_DataBus *bus = nullptr;
 static Arduino_GFX *panel = nullptr;
 static Arduino_Canvas *gfx = nullptr;
 
+static const int16_t MENU_CELL = 40, MENU_GAP = 2;
 static const uint16_t C_GOOD = 0x4EE9, C_WARN = 0xFE60, C_BAD = 0xF9C7, C_WHITE = 0xFFFF, C_INK = 0x1082;
 static inline uint16_t barColor(int16_t pct) { return pct > 50 ? C_GOOD : (pct > 25 ? C_WARN : C_BAD); }
 
@@ -25,9 +27,30 @@ bool Ui::begin(uint8_t rotation) {
   W = portrait ? LCD_NATIVE_W : LCD_NATIVE_H;
   H = portrait ? LCD_NATIVE_H : LCD_NATIVE_W;
   bus = new Arduino_ESP32SPI(PIN_LCD_DC, PIN_LCD_CS, PIN_LCD_SCLK, PIN_LCD_MOSI, GFX_NOT_DEFINED, FSPI);
-  panel = new Arduino_ST7789(bus, PIN_LCD_RST, rotation & 3, true, LCD_NATIVE_W, LCD_NATIVE_H, LCD_COL_OFFSET, 0, LCD_COL_OFFSET, 0);
+  panel = new Arduino_ST7789(bus, PIN_LCD_RST, rotation & 3, true, LCD_NATIVE_W, LCD_NATIVE_H,
+                             LCD_COL_OFFSET, LCD_ROW_OFFSET, LCD_COL_OFFSET2, LCD_ROW_OFFSET2);
   gfx = new Arduino_Canvas(W, H, panel, 0, 0, 0);
-  if (!ledcAttach(PIN_LCD_BL, 5000, 8)) Serial.println("[ui] backlight PWM attach failed");
+  // Layout. Tuned on the 320x172 panel (room 200x134, panel 94 wide) and expressed relative to
+  // W/H so a 280x240 or 240x280 screen gets the same proportions.
+  // Rounded glass (LCD_CORNER_RADIUS > 0): the top bar moves inward, the room's corner radius
+  // follows the bezel so the room looks concentric with the glass, and the lowest stat row in
+  // portrait shrinks to stay visible.
+  topInset = edgeInset(6);
+  if (portrait) {
+    roomX = 6; roomY = 30; roomW = W - 12;
+    roomH = min<int16_t>(150, H - 160);  // leaves room for five stat rows or the 4x2 menu
+    panelY = roomY + roomH + 12;
+    statRowH = (H - panelY - 3) / 5;
+    int16_t pad = edgeInset(H - (panelY + 4 * statRowH + 17));
+    panelX = 10 + pad; panelW = W - 20 - 2 * pad;
+  } else {
+    roomX = 8; roomY = 30; roomW = W - 120; roomH = H - 38;
+    panelX = roomX + roomW + 10; panelW = W - panelX - 8; panelY = 34;
+    statRowH = 26;
+  }
+  roomR = LCD_CORNER_RADIUS ? LCD_CORNER_RADIUS - roomX : 12;
+  // Channel 0 on its own timer; the buzzer (hw.cpp) uses channel 2 so its tones never retune this one.
+  if (!ledcAttachChannel(PIN_LCD_BL, 5000, 8, 0)) Serial.println("[ui] backlight PWM attach failed");
   setBacklight(0);
   if (!gfx->begin(80000000)) return false;
   gfx->fillScreen(C_INK);
@@ -37,6 +60,14 @@ bool Ui::begin(uint8_t rotation) {
 }
 
 void Ui::setBacklight(uint8_t level) { ledcWrite(PIN_LCD_BL, level); }
+
+int16_t Ui::edgeInset(int16_t dist) const {
+  const int32_t r = LCD_CORNER_RADIUS;
+  if (!r || dist >= r) return 0;
+  if (dist < 0) dist = 0;
+  int32_t dy = r - dist;
+  return (int16_t)(r - (int32_t)sqrtf((float)(r * r - dy * dy)));
+}
 
 void Ui::text(int16_t x, int16_t y, const char *s, uint16_t color, uint8_t size) {
   gfx->setTextColor(color);
@@ -53,15 +84,95 @@ int16_t Ui::textWidth(const char *s, uint8_t size) {
   return w;
 }
 
-void Ui::splash(const char *line1, const char *line2) {
-  gfx->fillScreen(C_INK);
-  gfx->setFont(&FreeSansBold12pt7b);
-  text(16, 60, "espgotchi", C_WHITE);
-  gfx->setFont(&FreeSans9pt7b);
-  text(16, 95, line1, 0xBDF7);
-  text(16, 118, line2, 0xBDF7);
+// Boot sequence, drawn frame by frame with millis() so it looks the same on both boards: the
+// species egg drops from above and bounces onto its shadow, the name types itself out, then the
+// version and board appear. The buzzer sequencer keeps running so the power-on tune plays through.
+void Ui::bootAnimation(const Pet &pet) {
+  const PetState &st = pet.state();
+  const SpeciesInfo &sp = SPECIES[st.species < SPECIES_COUNT ? st.species : 0];
+  const uint8_t scale = 3;
+  const int16_t eggSize = 24 * scale;
+  const int16_t blockH = eggSize + 58;  // egg, title, version
+  const int16_t top = max<int16_t>(12, (H - blockH) / 2);
+  const int16_t eggX = W / 2 - eggSize / 2;
+  const int16_t floorY = top + eggSize;  // egg rests on this line, shadow sits under it
+  const int16_t titleY = floorY + 30;    // FreeSansBold12 baseline
+  const int16_t verY = floorY + 42;      // default font top
+  const uint32_t DROP_MS = 650, TYPE_MS = 360, HOLD_MS = 650;
+  char ver[48];
+  snprintf(ver, sizeof(ver), "v%s  %s", FW_VERSION, BOARD_ID);
+  const char *title = "espgotchi";
+  const uint32_t t0 = millis();
+  bool tunePlayed = false;
+  for (;;) {
+    uint32_t t = millis() - t0;
+    hwLoop();
+    gfx->fillScreen(C_INK);
+    // Egg: ease-out bounce from above the screen down to the floor line.
+    float u = t >= DROP_MS ? 1.0f : (float)t / DROP_MS;
+    float b;  // 0 at start, 1 at rest, Penner's bounce
+    if (u < 1 / 2.75f) b = 7.5625f * u * u;
+    else if (u < 2 / 2.75f) { u -= 1.5f / 2.75f; b = 7.5625f * u * u + 0.75f; }
+    else if (u < 2.5f / 2.75f) { u -= 2.25f / 2.75f; b = 7.5625f * u * u + 0.9375f; }
+    else { u -= 2.625f / 2.75f; b = 7.5625f * u * u + 0.984375f; }
+    int16_t eggY = (int16_t)(-eggSize + (floorY - eggSize + eggSize) * b);
+    int16_t height = floorY - (eggY + eggSize);  // how far above the floor the egg is
+    int16_t rx = max<int16_t>(6, eggSize / 2 - height / 6);
+    gfx->fillEllipse(W / 2, floorY + 2, rx, 4, 0x2124);
+    drawSprite(*sp.egg, eggX, eggY, scale);
+    // Title types itself out once the egg has landed; the accent dot blinks like a cursor.
+    if (t >= DROP_MS) {
+      if (!tunePlayed) { hwTune(TUNE_BOOT); tunePlayed = true; }
+      uint32_t tt = t - DROP_MS;
+      size_t n = tt >= TYPE_MS ? strlen(title) : (size_t)(strlen(title) * tt / TYPE_MS);
+      char shown[16];
+      strncpy(shown, title, n); shown[n] = 0;
+      gfx->setFont(&FreeSansBold12pt7b);
+      int16_t tw = textWidth(title);
+      text(W / 2 - tw / 2, titleY, shown, C_WHITE);
+      if (n < strlen(title) && (tt / 90) % 2 == 0) gfx->fillRect(W / 2 - tw / 2 + textWidth(shown) + 2, titleY - 14, 3, 16, sp.accent);
+      gfx->setFont(nullptr);
+      if (tt >= TYPE_MS) {
+        text(W / 2 - textWidth(ver) / 2, verY, ver, 0xBDF7);
+        gfx->fillRect(W / 2 - 10, verY + 14, 20, 2, sp.accent);
+      }
+    }
+    gfx->flush();
+    if (t >= DROP_MS + TYPE_MS + HOLD_MS) break;
+    delay(16);
+  }
   gfx->setFont(nullptr);
-  drawSprite(SPR_KAWAII_EGG, W - 100, portrait ? 150 : 40, 3);
+}
+
+// A mark every 8 px along the diagonal of each corner. On a panel with rounded corners of radius
+// R, the mark at distance d from the corner is visible when d >= 0.293 R, so the first readable
+// number gives R ~ 3.4 d.
+void Ui::cornerTest() {
+  gfx->fillScreen(C_INK);
+  for (uint8_t i = 1; i <= 8; i++) {
+    int16_t d = i * 8;
+    uint16_t c = (i & 1) ? C_WARN : C_GOOD;
+    char n[3];
+    snprintf(n, sizeof(n), "%d", d);
+    const int16_t corners[4][2] = {{d, d}, {W - 1 - d, d}, {d, H - 1 - d}, {W - 1 - d, H - 1 - d}};
+    for (auto &pt : corners) {
+      gfx->fillRect(pt[0] - 2, pt[1] - 2, 5, 5, c);
+      text(pt[0] + (pt[0] < W / 2 ? 5 : -5 - textWidth(n)), pt[1] - 3, n, C_WHITE);
+    }
+  }
+  gfx->drawRect(0, 0, W, H, C_BAD);
+  gfx->flush();
+}
+
+void Ui::crosshair(int16_t x, int16_t y, uint8_t idx, uint8_t total) {
+  gfx->fillScreen(C_INK);
+  for (uint8_t i = 0; i < 4; i++) gfx->drawRect(i, i, W - 2 * i, H - 2 * i, C_BAD);  // the glass should show this frame on all four sides
+  gfx->drawFastHLine(x - 12, y, 25, C_WARN);
+  gfx->drawFastVLine(x, y - 12, 25, C_WARN);
+  gfx->drawCircle(x, y, 6, C_WHITE);
+  char buf[24];
+  snprintf(buf, sizeof(buf), "tap the cross  %u/%u", idx + 1, total);
+  text(W / 2 - textWidth(buf) / 2, H / 2 + 40, buf, 0xBDF7);
   gfx->flush();
 }
 
@@ -121,32 +232,47 @@ void Ui::pickTheme(const Pet &pet, bool night) {
   muted = mix(fg, bg, 110);
 }
 
-void Ui::drawTopBar(const Pet &pet, const NetInfo &net) {
+// nameOnly: the landscape menu grid sits where the pill, battery and wifi dot go.
+void Ui::drawTopBar(const Pet &pet, const NetInfo &net, bool nameOnly) {
   const PetState &s = pet.state();
   gfx->setFont(portrait ? &FreeSans9pt7b : &FreeSansBold12pt7b);
-  text(8, portrait ? 18 : 21, s.name, fg);
+  text(8 + topInset, portrait ? 18 : 21, s.name, fg);
   gfx->setFont(nullptr);
+  if (nameOnly) return;
   // stage / age pill
   char buf[20];
   if (s.stage == STAGE_EGG) snprintf(buf, sizeof(buf), "egg  %lus", (unsigned long)s.eggSec);
   else if (s.ageSec < 3600) snprintf(buf, sizeof(buf), "%s  %lum", pet.stageName(), (unsigned long)(s.ageSec / 60));
   else snprintf(buf, sizeof(buf), "%s  %luh", pet.stageName(), (unsigned long)(s.ageSec / 3600));
+  int16_t right = W - 22 - topInset;
+  if (hwHasBattery()) {
+    // battery outline with a fill proportional to the charge, left of the wifi dot
+    int pct = hwBatteryPct();
+    const int16_t bx = right - 22, by = 8, bw = 18, bh = 10;
+    gfx->drawRoundRect(bx, by, bw, bh, 2, fg);
+    gfx->fillRect(bx + bw, by + 3, 2, 4, fg);
+    int16_t fill = (bw - 4) * pct / 100;
+    if (fill > 0) gfx->fillRect(bx + 2, by + 2, fill, bh - 4, barColor(pct));
+    right = bx - 6;
+  }
   int16_t w = textWidth(buf) + 14;
-  int16_t x = W - 22 - w;
+  int16_t x = right - w;
   gfx->fillRoundRect(x, 6, w, 16, 8, accent);
   text(x + 7, 10, buf, C_INK);
   // wifi dot
   uint16_t wc = net.connected ? C_GOOD : (net.apMode ? C_WARN : C_BAD);
-  gfx->fillCircle(W - 11, 14, 4, wc);
-  if (!net.connected && frame) gfx->drawCircle(W - 11, 14, 6, wc);
+  gfx->fillCircle(W - 11 - topInset, 14, 4, wc);
+  if (!net.connected && frame) gfx->drawCircle(W - 11 - topInset, 14, 6, wc);
 }
 
 void Ui::drawRoom(const Pet &pet, bool night) {
   const PetState &s = pet.state();
-  const int16_t rx = portrait ? 6 : 8, ry = 30, rw = portrait ? W - 12 : 200, rh = portrait ? 150 : 134, floorY = ry + rh - 22;
-  gfx->fillRoundRect(rx, ry, rw, rh, 12, bg2);
-  gfx->fillRoundRect(rx, floorY, rw, rh - (floorY - ry), 12, mix(bg2, fg, 30));
-  gfx->fillRect(rx, floorY, rw, 12, mix(bg2, fg, 30));
+  const int16_t rx = roomX, ry = roomY, rw = roomW, rh = roomH, floorY = ry + rh - 22;
+  // Floor color first, then the wall on top with its bottom edge squared off, so the whole
+  // room keeps one outline whatever its corner radius.
+  gfx->fillRoundRect(rx, ry, rw, rh, roomR, mix(bg2, fg, 30));
+  gfx->fillRoundRect(rx, ry, rw, floorY - ry, roomR, bg2);
+  gfx->fillRect(rx, floorY - roomR, rw, roomR, bg2);
   if (night) {
     static const uint8_t stars[][2] = {{20, 14}, {60, 8}, {110, 20}, {150, 10}, {185, 26}, {90, 40}, {170, 48}};
     for (auto &st : stars) gfx->drawPixel(rx + st[0], ry + st[1], (frame ^ (st[0] & 1)) ? C_WHITE : muted);
@@ -167,14 +293,14 @@ void Ui::drawRoom(const Pet &pet, bool night) {
     gfx->setFont(&FreeSans9pt7b);
     text(rx + 60, ry + 22, "R.I.P.", fg);
     gfx->setFont(nullptr);
-    text(rx + (portrait ? 4 : 14), floorY + 7, portrait ? "hold BOOT 6s: new egg" : "hold BOOT 6s for a new egg", muted);
+    text(rx + max<int16_t>(portrait ? 4 : 14, edgeInset(H - floorY - 15)), floorY + 7, portrait ? "hold BOOT 6s: new egg" : "hold BOOT 6s for a new egg", muted);
     return;
   }
   if (s.stage == STAGE_EGG) {
     dx = frame ? 2 : -2;
     if (s.eggSec > 45) dy = frame ? -3 : 0;
     drawSprite(*spr, px + dx, py + dy, scale);
-    text(rx + (portrait ? 8 : 22), floorY + 7, portrait ? "BOOT: hatch early" : "press BOOT to hatch early", muted);
+    text(rx + max<int16_t>(portrait ? 8 : 22, edgeInset(H - floorY - 15)), floorY + 7, portrait ? "BOOT: hatch early" : "press BOOT to hatch early", muted);
     return;
   }
   bool alt = frame && !s.asleep;
@@ -216,24 +342,24 @@ void Ui::drawStats(const Pet &pet) {
   const PetState &s = pet.state();
   struct { const char *label; int16_t v; } rows[5] = {
     {"FOOD", s.hunger}, {"FUN", s.happiness}, {"ENERGY", s.energy}, {"CLEAN", s.hygiene}, {"HEALTH", s.health}};
-  const int16_t x = portrait ? 10 : 218, w = portrait ? W - 20 : 94;
-  int16_t y = portrait ? 192 : 34;
+  const int16_t x = panelX, w = panelW;
+  int16_t y = panelY;
   for (auto &r : rows) {
     text(x, y, r.label, muted);
     char v[6];
     snprintf(v, sizeof(v), "%d", r.v);
     text(x + w - textWidth(v), y, v, fg);
     drawBar(x, y + 10, w, 7, r.v);
-    y += portrait ? 25 : 26;
+    y += statRowH;
   }
 }
 
 void Ui::drawMenu(int8_t sel) {
   const Sprite *icons[MENU_COUNT] = {&SPR_MEAL_BURGER, &SPR_BALL, &SPR_HEART, &SPR_ICON_CLEAN, &SPR_ICON_SLEEP, &SPR_ICON_MEDS, &SPR_ICON_INFO};
   const char *labels[MENU_COUNT] = {"Feed", "Play", "Pet", "Clean", "Lights", "Medicine", "Info"};
-  // 7 items: 2x4 grid over the stats panel (landscape) or 4x2 under the room (portrait)
-  const int16_t cell = 40, gap = 2, cols = portrait ? 4 : 2;
-  const int16_t x0 = portrait ? (W - (cols * cell + (cols - 1) * gap)) / 2 : 218, y0 = portrait ? 192 : 4;
+  int16_t cols, x0, y0;
+  menuGrid(cols, x0, y0);
+  const int16_t cell = MENU_CELL, gap = MENU_GAP;
   for (int i = 0; i < MENU_COUNT; i++) {
     int16_t cx = x0 + (i % cols) * (cell + gap), cy = y0 + (i / cols) * (cell + gap);
     gfx->fillRoundRect(cx, cy, cell, cell, 10, i == sel ? accent : mix(bg, fg, 25));
@@ -241,33 +367,59 @@ void Ui::drawMenu(int8_t sel) {
   }
   int16_t rowsUsed = (MENU_COUNT + cols - 1) / cols;
   // Landscape has no room under the grid: label + hint go on the room floor strip instead
-  const int16_t lx = portrait ? x0 : 18, ly = portrait ? y0 + rowsUsed * (cell + gap) + 12 : 30 + 134 - 22 + 16;
+  const int16_t floorY = roomY + roomH - 22;
+  const int16_t lx = portrait ? x0 : roomX + 10 + edgeInset(H - floorY - 16), ly = portrait ? y0 + rowsUsed * (cell + gap) + 12 : floorY + 16;
   gfx->setFont(&FreeSans9pt7b);
   text(lx, ly, labels[sel], fg);
+  const int16_t labelW = textWidth(labels[sel]);
   gfx->setFont(nullptr);
-  const char *hint = "hold BOOT to select";
-  if (portrait) text(x0, H - 10, hint, muted);
-  else text(8 + 200 - 8 - textWidth(hint), 30 + 134 - 22 + 8, hint, muted);
+  const char *hint = HAS_TOUCH ? "tap an icon, or hold BOOT" : "hold BOOT to select";
+  if (portrait) text(max<int16_t>(x0, edgeInset(10)), H - 10, hint, muted);
+  else {
+    // Right of the label on the floor strip when it fits (wide room), else up in the sky.
+    int16_t hx = roomX + roomW - 8 - textWidth(hint);
+    if (hx > lx + labelW + 12) text(hx, floorY + 8, hint, muted);
+    else text(roomX + 10, roomY + 8, hint, muted);
+  }
+}
+
+// 7 items: 2x4 grid over the stats panel (landscape) or 4x2 under the room (portrait)
+void Ui::menuGrid(int16_t &cols, int16_t &x0, int16_t &y0) const {
+  cols = portrait ? 4 : 2;
+  x0 = portrait ? (W - (cols * MENU_CELL + (cols - 1) * MENU_GAP)) / 2 : panelX;
+  y0 = portrait ? panelY : (LCD_CORNER_RADIUS ? 12 : 4);  // rounded glass: clear the top corner
+}
+
+int8_t Ui::menuHit(int16_t x, int16_t y) const {
+  int16_t cols, x0, y0;
+  menuGrid(cols, x0, y0);
+  const int16_t pitch = MENU_CELL + MENU_GAP, slack = 4;  // a finger is not a pixel
+  if (x < x0 - slack || y < y0 - slack) return -1;
+  int16_t c = (x - x0) / pitch, r = (y - y0) / pitch;
+  if (c >= cols) return -1;
+  int16_t i = r * cols + c;
+  return i < MENU_COUNT ? (int8_t)i : -1;
 }
 
 void Ui::drawInfo(const Pet &pet, const NetInfo &net) {
   const PetState &s = pet.state();
   gfx->fillScreen(C_INK);
+  const int16_t lx = 10 + edgeInset(8);  // rounded glass: keep the text block clear of the corners
   gfx->setFont(&FreeSansBold12pt7b);
-  text(10, 22, s.name, C_WHITE);
+  text(lx, 22, s.name, C_WHITE);
   gfx->setFont(nullptr);
   char buf[40];
   snprintf(buf, sizeof(buf), "%s  gen %u", SPECIES[s.species < SPECIES_COUNT ? s.species : 0].label, s.generation);
-  if (portrait) text(10, 30, buf, 0xBDF7);
-  else text(W - 12 - textWidth(buf), 10, buf, 0xBDF7);
+  if (portrait) text(lx, 30, buf, 0xBDF7);
+  else text(W - lx - 2 - textWidth(buf), 10, buf, 0xBDF7);
   int16_t y = portrait ? 48 : 38;
   auto line = [&](uint16_t color, const char *fmt, auto... args) {
-    gfx->setCursor(10, y);
+    gfx->setCursor(lx, y);
     gfx->setTextColor(color);
     gfx->printf(fmt, args...);
     y += 13;
   };
-  if (portrait) {
+  if (portrait || W < 300) {  // narrow screens: one fact per line
     line(C_WHITE, "%s %s", pet.formName(), pet.stageName());
     line(C_WHITE, "Age %luh %02lum  Weight %d", (unsigned long)(s.ageSec / 3600), (unsigned long)((s.ageSec / 60) % 60), s.weight);
     line(C_WHITE, "Mood %s%s", pet.moodWord(), s.sick ? " (sick)" : "");
@@ -282,7 +434,7 @@ void Ui::drawInfo(const Pet &pet, const NetInfo &net) {
   if (net.connected) {
     line(C_GOOD, "WiFi %s  (%d dBm)", net.ssid, net.rssi);
     line(C_WHITE, "http://%s/", net.ip);
-    line(C_WHITE, "http://%s.local/", MDNS_HOST);
+    line(C_WHITE, "http://%s.local/", net.host);
   } else if (net.apMode) {
     line(C_WARN, "Setup network: %s", net.ssid);
     line(C_WHITE, "Open network, no password");
@@ -292,7 +444,13 @@ void Ui::drawInfo(const Pet &pet, const NetInfo &net) {
   }
   y += 8;
   line(0xBDF7, "Time %s  FW %s  heap %luk", net.timeValid ? "ok" : "no", FW_VERSION, (unsigned long)(ESP.getFreeHeap() / 1024));
-  text(10, H - 10, "press BOOT to go back", 0x7BEF);
+  if (hwHasBattery()) line(0xBDF7, "Battery %d%%  %d.%02d V", hwBatteryPct(), hwBatteryMv() / 1000, (hwBatteryMv() % 1000) / 10);
+  // Credits pinned to the bottom, above the back hint, so they sit in the same place on every board.
+  const int16_t fx = 10 + edgeInset(22);
+  const char *follow = "Follow for more  ";
+  text(fx, H - 22, follow, 0xBDF7);
+  text(fx + textWidth(follow), H - 22, "adrianmb.dev", SPECIES[s.species < SPECIES_COUNT ? s.species : 0].accent);
+  text(lx, H - 10, HAS_TOUCH ? "tap or press BOOT to go back" : "press BOOT to go back", 0x7BEF);
 }
 
 void Ui::render(const Pet &pet, const NetInfo &net, int8_t menuSel, bool infoPage, bool night) {
@@ -308,7 +466,7 @@ void Ui::render(const Pet &pet, const NetInfo &net, int8_t menuSel, bool infoPag
   }
   pickTheme(pet, night);
   gfx->fillScreen(bg);
-  drawTopBar(pet, net);
+  drawTopBar(pet, net, menuSel >= 0 && !portrait);
   drawRoom(pet, night);
   if (menuSel >= 0) drawMenu(menuSel);
   else drawStats(pet);

@@ -19,15 +19,16 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
-# Verified byte by byte against espgotchi.ino.merged.bin (ESP32-C6, 4 MB,
-# no_ota partition scheme). The names are the ones the release job assembles.
-EXPECTED = {
-    "bootloader.bin": 0x0000,
-    "partitions.bin": 0x8000,
-    "boot_app0.bin":  0xE000,
-    "espgotchi.bin":  0x10000,
+# Verified byte by byte against espgotchi.ino.merged.bin of each board (ESP32-C6 4 MB no_ota,
+# ESP32-S3 16 MB app3M_fat9M). Both chips load the bootloader at 0x0, unlike the classic
+# ESP32 (0x1000). The names are the ones the release job assembles: <part>-<board>.bin.
+BOARDS = {"ESP32-C6": "c6", "ESP32-S3": "s3"}
+OFFSETS = {
+    "bootloader": 0x0000,
+    "partitions": 0x8000,
+    "boot_app0":  0xE000,
+    "espgotchi":  0x10000,
 }
-CHIP_FAMILY = "ESP32-C6"
 
 
 def main() -> int:
@@ -35,18 +36,20 @@ def main() -> int:
     config_path = ROOT / "firmware" / "espgotchi" / "config.h"
 
     manifest = json.loads(manifest_path.read_text())
-    builds = manifest["builds"]
-    if len(builds) != 1 or builds[0].get("chipFamily") != CHIP_FAMILY:
-        print(f"manifest must have exactly one build for {CHIP_FAMILY}", file=sys.stderr)
+    builds = {b.get("chipFamily"): b for b in manifest["builds"]}
+    if set(builds) != set(BOARDS):
+        print(f"manifest must have exactly one build per board: {sorted(BOARDS)}", file=sys.stderr)
         return 1
-    parts = {p["path"]: p["offset"] for p in builds[0]["parts"]}
-    if parts != EXPECTED:
-        print("manifest parts do not match the verified offsets:", file=sys.stderr)
-        for name, off in EXPECTED.items():
-            got = parts.get(name)
-            mark = "ok" if got == off else f"got {got}"
-            print(f"  {name:16s} expected {off:#07x} ({off})  {mark}", file=sys.stderr)
-        return 1
+    for family, board in BOARDS.items():
+        expected = {f"{part}-{board}.bin": off for part, off in OFFSETS.items()}
+        parts = {p["path"]: p["offset"] for p in builds[family]["parts"]}
+        if parts != expected:
+            print(f"{family}: manifest parts do not match the verified offsets:", file=sys.stderr)
+            for name, off in expected.items():
+                got = parts.get(name)
+                mark = "ok" if got == off else f"got {got}"
+                print(f"  {name:20s} expected {off:#07x} ({off})  {mark}", file=sys.stderr)
+            return 1
 
     m = re.search(r'#define\s+FW_VERSION\s+"([^"]+)"', config_path.read_text())
     if not m:
@@ -60,7 +63,7 @@ def main() -> int:
         )
         return 1
 
-    print(f"manifest ok: {CHIP_FAMILY}, version {fw_version}, {len(parts)} parts")
+    print(f"manifest ok: {', '.join(BOARDS)}, version {fw_version}, {len(OFFSETS)} parts each")
     return 0
 
 

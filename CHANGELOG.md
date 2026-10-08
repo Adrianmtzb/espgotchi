@@ -7,6 +7,37 @@ Este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 
 ### Añadido
 
+- Tres especies nuevas, la **edición Cute**: **Mimi** (`mimi`, gatita blanca con lazo rojo y
+  vestido rosa), **Momo** (`momo`, conejita crema con una flor en la oreja) y **Pingo** (`pingo`,
+  pingüino con bufanda a rayas). Línea de evolución completa, tres formas adultas y frames dormidos
+  generados, como el resto. Disponibles en la web, la landing, el MCP y la consola (`reset mimi`).
+- Soporte para una segunda placa, la **Waveshare ESP32-S3-Touch-LCD-1.69** (`make build BOARD=s3`):
+  pantalla ST7789V2 de 240×280, táctil CST816 (tap sobre un icono, swipe para recorrer el menú,
+  pulsación larga), zumbador en lugar del LED, indicador de batería en pantalla y en `/api/info`,
+  y botón PWR para apagar. El pinout vive en `firmware/espgotchi/boards/` y lo elige el target
+  del compilador; el layout se calcula desde el tamaño del panel. El instalador web lleva un build
+  por chip y el CI compila las dos placas. Verificado en hardware: pantalla, táctil (con
+  calibración medida), zumbador, batería y botón PWR.
+- Hostname mDNS configurable desde la web, la API (`hostname` en `/api/settings`), el MCP y la
+  consola (`host <nombre>`), para que dos placas convivan en la misma red. Por defecto sigue
+  siendo `espgotchi.local`.
+- Ajuste `nightDim` (web, API) para desactivar la atenuación automática de 22:00 a 07:00.
+- Sonidos por acción en placas con zumbador: comer, snack, jugar, mimar, limpiar, dormir y
+  despertar, medicina, info, tic de menú, rechazo, nacimiento o evolución y muerte. Se generan
+  desde el estado del pet, así que suenan igual venga la orden del botón, el táctil, la web o el MCP.
+  Comer y snack suenan por mordida: un bocado por cada frame de masticar y un remate al terminar.
+- Animación de arranque: el huevo de la especie activa cae y rebota sobre su sombra, el nombre se
+  escribe solo y aparece la versión con el identificador de la placa, con su propio sonido en las
+  placas con zumbador. El comando serie `boot` la repite.
+- La pantalla Info cierra con "Follow for more" y el enlace a adrianmb.dev.
+- Landing: sección de hardware con las dos placas dibujadas en el estilo del hero (pantalla con
+  el pet de la especie elegida, botones, LED o zumbador, batería) y sus fichas y pines; inglés
+  por defecto con el selector recordando la elección; tarjeta social (`og:image`) generada por
+  `tools/gen_og.mjs` en el CI; cabecera móvil con los enlaces en una tira desplazable.
+- Selector de zona horaria en la web con ciudades comunes agrupadas por región; la opción
+  "Custom" sigue aceptando un string POSIX a mano.
+- Comandos de consola para poner en marcha una placa nueva: `tp` (registro de toques), `tcal`
+  (calibración táctil con cinco cruces), `corners` (medir el radio del bisel) y `gpio <n>`.
 - Edición especial de Halloween: dos especies nuevas, **Boo** (`ghost`, fantasma de sábana con
   corona de adulto) y **Jack** (`pumpkin`, calabaza tallada con orejas de murciélago y sombrero de
   bruja), con huevo, cuatro etapas, formas elite/feral/anciano y tema propio. Marcadas con

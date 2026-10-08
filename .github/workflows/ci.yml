@@ -11,14 +11,17 @@ permissions:
   contents: read
 
 # The real commands live in the Makefile so CI runs exactly what a
-# contributor runs locally.
-env:
-  BUILD_DIR: firmware/espgotchi/build/esp32.esp32.esp32c6
-
+# contributor runs locally. One build job per supported board.
 jobs:
   build:
-    name: Build firmware
+    name: Build firmware (${{ matrix.board }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        board: [c6, s3]
+    env:
+      BOARD: ${{ matrix.board }}
     steps:
       - uses: actions/checkout@v4
 
@@ -53,11 +56,22 @@ jobs:
       - name: Add boot_app0.bin
         run: make bootapp0
 
+      # Rename to the per-board names the manifest and the release use.
+      - name: Collect binaries
+        run: |
+          d=$(make --no-print-directory print-build)
+          mkdir -p dist
+          cp "$d/espgotchi.ino.bin"            dist/espgotchi-$BOARD.bin
+          cp "$d/espgotchi.ino.merged.bin"     dist/espgotchi-$BOARD.merged.bin
+          cp "$d/espgotchi.ino.bootloader.bin" dist/bootloader-$BOARD.bin
+          cp "$d/espgotchi.ino.partitions.bin" dist/partitions-$BOARD.bin
+          cp "$d/boot_app0.bin"                dist/boot_app0-$BOARD.bin
+
       - name: Upload binaries
         uses: actions/upload-artifact@v4
         with:
-          name: firmware
-          path: ${{ env.BUILD_DIR }}/*.bin
+          name: firmware-${{ matrix.board }}
+          path: dist/*.bin
           if-no-files-found: error
 
   release:
@@ -72,7 +86,8 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          name: firmware
+          pattern: firmware-*
+          merge-multiple: true
           path: dist
 
       - name: Create the release
@@ -82,8 +97,8 @@ jobs:
           gh release create "$GITHUB_REF_NAME" \
             --title "$GITHUB_REF_NAME" \
             --generate-notes \
-            dist/espgotchi.ino.bin \
-            dist/espgotchi.ino.merged.bin
+            dist/espgotchi-c6.bin dist/espgotchi-c6.merged.bin \
+            dist/espgotchi-s3.bin dist/espgotchi-s3.merged.bin
 
   pages:
     name: Deploy web installer
@@ -99,9 +114,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
       - uses: actions/download-artifact@v4
         with:
-          name: firmware
+          pattern: firmware-*
+          merge-multiple: true
           path: dist
 
       # Binaries never live in the repo: the site is assembled here with the
@@ -111,11 +131,11 @@ jobs:
         run: |
           mkdir -p _site
           cp docs/index.html docs/manifest.json _site/
-          cp shared/sprites.json                 _site/sprites.json
-          cp dist/espgotchi.ino.bin              _site/espgotchi.bin
-          cp dist/espgotchi.ino.bootloader.bin   _site/bootloader.bin
-          cp dist/espgotchi.ino.partitions.bin   _site/partitions.bin
-          cp dist/boot_app0.bin                  _site/boot_app0.bin
+          cp shared/sprites.json _site/sprites.json
+          node tools/gen_og.mjs _site/og.png
+          for b in c6 s3; do
+            cp dist/espgotchi-$b.bin dist/bootloader-$b.bin dist/partitions-$b.bin dist/boot_app0-$b.bin _site/
+          done
 
       - uses: actions/upload-pages-artifact@v3
         with:

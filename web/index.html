@@ -48,7 +48,8 @@
   button.danger:hover{background:color-mix(in srgb,var(--bad) 25%,transparent);border-color:var(--bad)}
   button .ico{display:block;font-size:22px;margin-bottom:4px}
   .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-  input[type=text],input[type=password]{flex:1;min-width:140px;padding:12px;border-radius:12px;border:1px solid var(--line);background:color-mix(in srgb,var(--fg) 5%,transparent);color:var(--fg);font:inherit}
+  input[type=text],input[type=password],select{flex:1;min-width:140px;padding:12px;border-radius:12px;border:1px solid var(--line);background:color-mix(in srgb,var(--fg) 5%,transparent);color:var(--fg);font:inherit}
+  select{appearance:auto;max-width:100%}
   input[type=range]{flex:1;accent-color:var(--accent)}
   h2{margin:0 0 12px;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:1.4px;font-weight:700}
   ul#log{list-style:none;margin:0;padding:0;max-height:200px;overflow:auto;font-size:13px}
@@ -117,12 +118,14 @@
     <h2>Settings</h2>
     <form class="row" id="f-name" autocomplete="off"><input type="text" id="i-name" maxlength="15" placeholder="Pet name"><button>Rename</button></form>
     <div class="row" style="margin-top:12px"><label style="font-size:13px;color:var(--muted)">Screen brightness</label><input type="range" id="i-bl" min="5" max="255"><b id="v-bl" style="font-size:13px;min-width:28px;text-align:right"></b></div>
+    <label class="row" style="margin-top:8px;font-size:13px;color:var(--muted);gap:8px"><input type="checkbox" id="i-ndim"> Dim the screen at night (22:00–07:00)</label>
     <div class="row" style="margin-top:12px"><label style="font-size:13px;color:var(--muted)">Screen orientation</label>
       <div class="seg" id="seg-orient">
         <button data-orient="landscape">Landscape</button><button data-orient="landscape-flipped">Landscape ↻</button>
         <button data-orient="portrait">Portrait</button><button data-orient="portrait-flipped">Portrait ↻</button>
       </div></div>
-    <form class="row" id="f-tz" style="margin-top:12px"><input type="text" id="i-tz" placeholder="POSIX TZ, e.g. CET-1CEST,M3.5.0,M10.5.0/3"><button>Set time zone</button></form>
+    <form class="row" id="f-tz" style="margin-top:12px"><label style="font-size:13px;color:var(--muted)">Time zone</label><select id="s-tz"></select><input type="text" id="i-tz" placeholder="POSIX TZ, e.g. CET-1CEST,M3.5.0,M10.5.0/3" hidden><button>Set time zone</button></form>
+    <form class="row" id="f-host" style="margin-top:12px" autocomplete="off"><input type="text" id="i-host" maxlength="24" pattern="[a-z0-9-]+" placeholder="Hostname, e.g. espgotchi (→ espgotchi.local)"><button>Set hostname</button></form>
     <details style="margin-top:14px">
       <summary>Device & WiFi</summary>
       <div class="kv" id="devinfo"></div>
@@ -334,6 +337,7 @@ function drawScreen() {
 setInterval(drawScreen, 100);
 
 // ---- species picker ----
+const SEASONS = { halloween: { tag: '🎃 Halloween', color: '#ff8c1a' }, cute: { tag: '🎀 Cute', color: '#ff8fb1' } };
 function buildPicker() {
   const box = $('species'); box.innerHTML = '';
   for (const [key, t] of Object.entries(sheet.species)) {
@@ -342,7 +346,7 @@ function buildPicker() {
     const cx = c.getContext('2d'); cx.fillStyle = t.bg2; cx.beginPath(); cx.roundRect(0, 0, 72, 72, 12); cx.fill();
     drawSprite(cx, `${key}_adult_0`, 0, 0, 3);
     b.append(c, Object.assign(document.createElement('span'), { textContent: `${t.emoji} ${t.label}` }));
-    if (t.season === 'halloween') b.append(Object.assign(document.createElement('small'), { className: 'season', textContent: '🎃 Halloween' }));
+    const season = SEASONS[t.season]; if (season) b.append(Object.assign(document.createElement('small'), { className: 'season', textContent: season.tag, style: `background:${season.color}` }));
     box.append(b);
   }
 }
@@ -370,7 +374,9 @@ async function loadInfo() {
       .map(([k, v]) => `<b>${k}</b><span>${v}</span>`).join('');
     $('i-bl').value = i.brightness; $('v-bl').textContent = i.brightness;
     for (const b of document.querySelectorAll('#seg-orient button')) b.classList.toggle('active', b.dataset.orient === i.orientation);
-    if (!$('i-tz').value) $('i-tz').value = i.tz;
+    if (!tzTouched) selectTz(i.tz);
+    if (!$('i-host').value && i.hostname) $('i-host').value = i.hostname;
+    $('i-ndim').checked = i.nightDim !== false;
   } catch {}
 }
 $('actions').addEventListener('click', async (ev) => {
@@ -384,7 +390,54 @@ $('actions').addEventListener('click', async (ev) => {
   } catch { toast('Device did not answer'); }
 });
 $('f-name').addEventListener('submit', async (ev) => { ev.preventDefault(); const r = await api('/api/name', { name: $('i-name').value.trim() }); render(r.pet); toast('Renamed'); });
-$('f-tz').addEventListener('submit', async (ev) => { ev.preventDefault(); await api('/api/settings', { tz: $('i-tz').value.trim() }); toast('Time zone saved'); });
+// Common zones as POSIX TZ strings (what the firmware's clock understands); "Custom" reveals the raw field.
+const TZ_ZONES = [
+  ['America', [['Mexico City / Monterrey', 'CST6'], ['Cancún', 'EST5'], ['Tijuana', 'PST8PDT,M3.2.0,M11.1.0'], ['Hermosillo', 'MST7'],
+    ['US Eastern', 'EST5EDT,M3.2.0,M11.1.0'], ['US Central', 'CST6CDT,M3.2.0,M11.1.0'], ['US Mountain', 'MST7MDT,M3.2.0,M11.1.0'], ['Arizona', 'MST7'],
+    ['US Pacific', 'PST8PDT,M3.2.0,M11.1.0'], ['Alaska', 'AKST9AKDT,M3.2.0,M11.1.0'], ['Hawaii', 'HST10'],
+    ['Bogotá / Lima / Quito', '<-05>5'], ['Caracas / La Paz', '<-04>4'], ['Santiago', '<-04>4<-03>,M9.1.6/24,M4.1.6/24'],
+    ['Buenos Aires / Montevideo', '<-03>3'], ['São Paulo', '<-03>3']]],
+  ['Europe', [['London / Dublin', 'GMT0BST,M3.5.0/1,M10.5.0'], ['Lisbon', 'WET0WEST,M3.5.0/1,M10.5.0'],
+    ['Madrid / Paris / Berlin / Rome', 'CET-1CEST,M3.5.0,M10.5.0/3'], ['Athens / Helsinki / Kyiv', 'EET-2EEST,M3.5.0/3,M10.5.0/4'],
+    ['Istanbul / Moscow', '<+03>-3']]],
+  ['Asia & Pacific', [['Dubai', '<+04>-4'], ['India', 'IST-5:30'], ['Bangkok / Jakarta', '<+07>-7'], ['Singapore / Manila / Shanghai', '<+08>-8'],
+    ['Tokyo / Seoul', 'JST-9'], ['Sydney / Melbourne', 'AEST-10AEDT,M10.1.0,M4.1.0/3'], ['Brisbane', 'AEST-10'], ['Auckland', 'NZST-12NZDT,M9.5.0,M4.1.0/3']]],
+  ['Other', [['UTC', 'UTC0']]],
+];
+let tzTouched = false;
+(() => {
+  const sel = $('s-tz');
+  for (const [group, zones] of TZ_ZONES) {
+    const og = document.createElement('optgroup'); og.label = group;
+    for (const [label, tz] of zones) { const o = document.createElement('option'); o.value = tz; o.textContent = label; og.appendChild(o); }
+    sel.appendChild(og);
+  }
+  const custom = document.createElement('option'); custom.value = ''; custom.textContent = 'Custom POSIX string…'; sel.appendChild(custom);
+  sel.addEventListener('change', () => { tzTouched = true; $('i-tz').hidden = sel.value !== ''; if (!sel.value) $('i-tz').focus(); });
+  $('i-tz').addEventListener('input', () => { tzTouched = true; });
+})();
+function selectTz(tz) {
+  const sel = $('s-tz');
+  const known = [...sel.options].some(o => o.value === tz && o.value !== '');
+  sel.value = known ? tz : '';
+  $('i-tz').hidden = known;
+  $('i-tz').value = tz || '';
+}
+$('f-tz').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const tz = ($('s-tz').value || $('i-tz').value).trim();
+  if (!tz) { toast('Type a POSIX TZ string'); return; }
+  await api('/api/settings', { tz }); tzTouched = false; toast('Time zone saved');
+});
+$('i-ndim').addEventListener('change', async (ev) => { await api('/api/settings', { nightDim: ev.target.checked }); toast(ev.target.checked ? 'Night dimming on' : 'Night dimming off'); });
+$('f-host').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const hostname = $('i-host').value.trim().toLowerCase();
+  try {
+    const r = await api('/api/settings', { hostname });
+    toast(r.rebooting ? `Rebooting as ${hostname}.local…` : 'Hostname unchanged');
+  } catch (e) { toast(e.message || 'Invalid hostname'); }
+});
 let blTimer = null;
 $('i-bl').addEventListener('input', (ev) => {
   $('v-bl').textContent = ev.target.value;
