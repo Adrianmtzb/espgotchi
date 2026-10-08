@@ -1,0 +1,20 @@
+# arduino-cli build output
+firmware/espgotchi/build/
+*.bin
+*.elf
+*.map
+
+# The installer binaries are produced by CI on each tag; only the page and
+# its manifest live in the repo.
+docs/*.bin
+_site/
+
+# macOS
+.DS_Store
+*.png
+
+# MCP server dependencies
+mcp/node_modules/
+
+# Promotional material (reel source, renders, audio) stays local
+promo/

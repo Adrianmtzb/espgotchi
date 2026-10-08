@@ -1,0 +1,49 @@
+name: Reporte de bug
+description: Algo no funciona como debería
+labels: [bug]
+body:
+  - type: textarea
+    id: que-pasa
+    attributes:
+      label: Qué pasa
+      description: Qué esperabas y qué ocurre en su lugar.
+    validations:
+      required: true
+  - type: textarea
+    id: pasos
+    attributes:
+      label: Cómo reproducirlo
+      placeholder: |
+        1. Arranco sin WiFi guardado
+        2. Me conecto a ESPgotchi-XXXX
+        3. ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Versión del firmware
+      description: Sale en la página Info (pulsación larga de BOOT), en `/api/info` o con `status` por serie.
+      placeholder: 0.1.0
+    validations:
+      required: true
+  - type: dropdown
+    id: como
+    attributes:
+      label: Cómo lo instalaste
+      options:
+        - Instalador web (Chrome/Edge)
+        - Compilado con make / arduino-cli
+    validations:
+      required: true
+  - type: input
+    id: navegador
+    attributes:
+      label: Navegador y sistema (si afecta a la web o al portal)
+      placeholder: Safari iOS 18 / Chrome Android 130
+  - type: textarea
+    id: logs
+    attributes:
+      label: Salida del puerto serie
+      description: Si la tienes, pega lo que imprime a 115200 baudios (`make monitor`).
+      render: text
