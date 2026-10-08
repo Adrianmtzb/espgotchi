@@ -117,7 +117,7 @@ jobs:
           cp dist/espgotchi.ino.partitions.bin   _site/partitions.bin
           cp dist/boot_app0.bin                  _site/boot_app0.bin
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: _site
 
