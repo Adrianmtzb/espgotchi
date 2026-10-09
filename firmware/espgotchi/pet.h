@@ -53,6 +53,7 @@ class Pet {
   // actions, return false if not allowed right now
   bool feed(bool snack);
   bool play();
+  void playGame(uint8_t score);  // end of a Catch the ball round: fun goes up with the score, energy down
   bool pet();  // a little affection: small happiness boost, works even when sleepy
   bool clean();
   bool toggleLights();
