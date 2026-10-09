@@ -85,10 +85,15 @@ El panel necesita offset de columna 34 e inversión de color activada. No hay t�
 - **Web embebida** en `http://espgotchi.local/` (o la IP): espejo de la pantalla, barras,
   acciones, log de eventos, renombrar, brillo, zona horaria y cambio de WiFi.
 - **API JSON** para integrar lo que quieras (ver abajo).
+- **Visitas entre placas.** Si hay dos ESPgotchi en la misma red, cada cinco minutos uno busca al
+  otro por mDNS (`_espgotchi._tcp`), lee su `/api/state` y el amigo aparece en la habitación
+  unos 20 s con su sprite real, un corazón y su nombre; el pet gana diversión. No hace falta
+  configurar nada: una placa sola no encuentra a nadie y no muestra nada. Para probarlo a mano,
+  `visit [host]` en la consola o `POST /api/visit`.
 - **CLI por serie** a 115200 baudios: `help`, `status`, `wifi <ssid> <pass>`, `forget`, `name`,
-  `tz`, `feed`, `snack`, `play`, `pet`, `clean`, `sleep`, `med`, `bl [0-255]` (diagnóstico del
-  backlight), `shot` (vuelca la pantalla), `press` y `hold` (simulan el botón), `hatch`,
-  `reset [especie]`, `reboot`.
+  `tz`, `feed`, `snack`, `play`, `pet`, `clean`, `sleep`, `med`, `visit [host]` (busca otra placa
+  o visita una dada), `bl [0-255]` (diagnóstico del backlight), `shot` (vuelca la pantalla),
+  `press` y `hold` (simulan el botón), `hatch`, `reset [especie]`, `reboot`.
 
 ### Botón BOOT
 
@@ -160,12 +165,13 @@ brillo queda limitado a 80.
 |---|---|
 | `GET /` | Web embebida (en modo AP: formulario de WiFi) |
 | `GET /sprites.json` | Sprites compartidos con la web |
-| `GET /api/state` | Estado del pet (`stage`, `form`, `nextEvolutionSec`, stats…) y del dispositivo |
+| `GET /api/state` | Estado del pet (`stage`, `form`, `nextEvolutionSec`, `spriteSlot`, stats…) y del dispositivo; `visitor: {name, species}` mientras hay un amigo de visita |
 | `GET /api/events` | Últimos 16 eventos, el más reciente primero |
 | `GET /api/info` | Placa, firmware, IP, RSSI, heap, TZ, brillo; con batería, `batteryMv`, `batteryPct`, `lowBattery` y `charging` |
 | `POST /api/action` | `{"type":"feed"|"snack"|"play"|"pet"|"clean"|"sleep"|"medicine"|"hatch"|"reset"}`; con `reset`, opcional `"species":"kawaii"|"alien"|"dino"|"edge"|"ghost"|"pumpkin"|"mimi"|"momo"|"pingo"|"unicorn"` |
 | `POST /api/name` | `{"name":"Pixel"}` (máx. 15 caracteres) |
 | `POST /api/settings` | `{"tz":"...", "brightness": 5..255, "orientation":"landscape"|"landscape-flipped"|"portrait"|"portrait-flipped", "hostname":"espgotchi", "nightDim": true}` (orientación y hostname reinician la placa; `nightDim` activa o quita la atenuación nocturna) |
+| `POST /api/visit` | `{"host":"192.168.1.50"}` o `{"host":"otro.local"}` trae de visita al pet de esa placa; sin `host`, busca una por mDNS |
 | `POST /api/wifi` | `{"ssid":"...","pass":"..."}` o formulario; guarda y reinicia |
 
 Ejemplo:

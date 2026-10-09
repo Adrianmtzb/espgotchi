@@ -1,9 +1,11 @@
 #include "net.h"
 #include <DNSServer.h>
 #include <ESPmDNS.h>
+#include <HTTPClient.h>
 #include <Preferences.h>
 #include <WebServer.h>
 #include <WiFi.h>
+#include <mdns.h>
 #include <time.h>
 #include "config.h"
 #include "hw.h"
@@ -123,8 +125,11 @@ void Net::onConnected() {
   if (!mdnsStarted && MDNS.begin(host.c_str())) {
     MDNS.addService("http", "tcp", 80);
     MDNS.addServiceTxt("http", "tcp", "device", "espgotchi");
+    MDNS.addService("espgotchi", "tcp", 80);  // other boards find us through this one
     mdnsStarted = true;
   }
+  advertise();
+  nextVisitMs = millis() + VISIT_FIRST_MS;
   if (!timeConfigured) {
     configTzTime(tzStr.c_str(), NTP_SERVER);
     timeConfigured = true;
@@ -143,6 +148,7 @@ void Net::loop() {
       caughtUp = true;
       if (pet) pet->catchUp(epoch());
     }
+    visitLoop();
   } else {
     connected = false;
     uint32_t now = millis();
@@ -162,6 +168,132 @@ void Net::loop() {
       WiFi.reconnect();
     }
   }
+}
+
+// ---------- visits ----------
+// Every board advertises _espgotchi._tcp with the pet's species, name and stage. Every
+// VISIT_INTERVAL_MS a board queries that service, picks another board and fetches its /api/state
+// so the friend can be drawn from the species sheets already in flash. Alone on the network the
+// query finds nobody and nothing happens.
+void Net::advertise() {
+  if (!mdnsStarted || !pet) return;
+  const PetState &s = pet->state();
+  String txt = String(pet->speciesKey()) + "|" + s.name + "|" + pet->stageName();
+  if (txt == lastAdvert) return;
+  lastAdvert = txt;
+  MDNS.addServiceTxt("espgotchi", "tcp", "species", pet->speciesKey());
+  MDNS.addServiceTxt("espgotchi", "tcp", "name", s.name);
+  MDNS.addServiceTxt("espgotchi", "tcp", "stage", pet->stageName());
+}
+
+void Net::visitNow() {
+  if (!connected || apMode || !mdnsStarted) { Serial.println("[visit] no WiFi"); return; }
+  if (visitSearch) return;  // one already in flight
+  visitSearch = mdns_query_async_new(nullptr, "_espgotchi", "_tcp", MDNS_TYPE_PTR, 1500, 8, nullptr);
+  if (!visitSearch) Serial.println("[visit] mDNS query failed to start");
+}
+
+void Net::visitLoop() {
+  uint32_t now = millis();
+  if (now - lastAdvertMs > 10000) {  // keep the TXT records in step with renames and evolutions
+    lastAdvertMs = now;
+    advertise();
+  }
+  if (!visitSearch && pet && (int32_t)(now - nextVisitMs) >= 0) {
+    nextVisitMs = now + VISIT_INTERVAL_MS;
+    const PetState &s = pet->state();
+    if (!s.dead && s.stage != STAGE_EGG && !s.asleep && !pet->busy()) visitNow();
+  }
+  if (!visitSearch) return;
+  mdns_result_t *results = nullptr;
+  uint8_t n = 0;
+  if (!mdns_query_async_get_results((mdns_search_once_t *)visitSearch, 0, &results, &n)) return;  // still listening
+  mdns_query_async_delete((mdns_search_once_t *)visitSearch);
+  visitSearch = nullptr;
+  // Collect the other boards (never ourselves) and pick one at random.
+  struct { IPAddress ip; uint16_t port; } found[8];
+  uint8_t count = 0;
+  IPAddress me = WiFi.localIP();
+  for (mdns_result_t *r = results; r && count < 8; r = r->next) {
+    for (mdns_ip_addr_t *a = r->addr; a; a = a->next) {
+      if (a->addr.type != ESP_IPADDR_TYPE_V4) continue;
+      IPAddress ip(a->addr.u_addr.ip4.addr);
+      if (ip == me) break;
+      found[count].ip = ip;
+      found[count].port = r->port ? r->port : 80;
+      count++;
+      break;
+    }
+  }
+  mdns_query_results_free(results);
+  if (!count) { Serial.println("[visit] nobody around"); return; }
+  uint8_t pick = esp_random() % count;
+  String err;
+  if (!visitAddr(found[pick].ip, found[pick].port, err)) {
+    Serial.printf("[visit] %s: %s\n", found[pick].ip.toString().c_str(), err.c_str());
+    nextVisitMs = millis() + 30000;  // busy or unreachable: retry soon rather than in five minutes
+  }
+}
+
+// Fallback for boards whose /api/state predates `spriteSlot`.
+static uint8_t slotFromStage(const char *stage, const char *form) {
+  if (!stage) return 3;
+  if (!strcmp(stage, "baby")) return 0;
+  if (!strcmp(stage, "child")) return 1;
+  if (!strcmp(stage, "teen")) return 2;
+  if (!strcmp(stage, "elder")) return 6;
+  if (form && !strcmp(form, "elite")) return 4;
+  if (form && !strcmp(form, "feral")) return 5;
+  return 3;
+}
+
+bool Net::visitAddr(IPAddress ip, uint16_t port, String &err) {
+  if (!pet) { err = "no pet"; return false; }
+  if (ip == WiFi.localIP() || ip == IPAddress((uint32_t)0)) { err = "that is this board"; return false; }
+  WiFiClient client;
+  HTTPClient http;
+  http.setConnectTimeout(VISIT_HTTP_TIMEOUT_MS);
+  http.setTimeout(VISIT_HTTP_TIMEOUT_MS);
+  http.setReuse(false);
+  String url = "http://" + ip.toString() + ":" + String(port) + "/api/state";
+  if (!http.begin(client, url)) { err = "bad url"; return false; }
+  int code = http.GET();
+  if (code != 200) { http.end(); err = "http " + String(code); return false; }
+  JsonDocument doc;
+  DeserializationError de = deserializeJson(doc, http.getString());
+  http.end();
+  if (de) { err = "bad json"; return false; }
+  JsonObject p = doc["pet"];
+  const char *name = p["name"];
+  const char *species = p["species"];
+  const char *stage = p["stage"];
+  if (!name || !*name || !species) { err = "not an espgotchi"; return false; }
+  if (p["dead"] | false) { err = "friend has passed away"; return false; }
+  if (stage && !strcmp(stage, "egg")) { err = "friend is still an egg"; return false; }
+  int8_t sp = Pet::speciesFromKey(species);
+  if (sp < 0) { err = String("unknown species ") + species; return false; }
+  int slot = p["spriteSlot"] | -1;
+  if (slot < 0) slot = slotFromStage(stage, p["form"] | (const char *)nullptr);
+  if (!pet->visitFrom(name, (uint8_t)sp, (uint8_t)slot)) { err = "pet is busy, asleep or not hatched"; return false; }
+  Serial.printf("[visit] %s (%s) from %s dropped by\n", name, species, ip.toString().c_str());
+  return true;
+}
+
+bool Net::visitHost(const char *host, String &err) {
+  if (!connected || apMode) { err = "no WiFi"; return false; }
+  if (!host || !*host || strlen(host) > 64) { err = "host required"; return false; }
+  IPAddress ip;
+  if (!ip.fromString(host)) {
+    // "name.local" or a bare mDNS name: the DNS resolver does not handle .local, mDNS does
+    char name[65];
+    strlcpy(name, host, sizeof(name));
+    size_t n = strlen(name);
+    if (n > 6 && !strcasecmp(name + n - 6, ".local")) name[n - 6] = 0;
+    if (!mdnsStarted) { err = "mDNS not running"; return false; }
+    ip = MDNS.queryHost(name, 500);
+    if (ip == IPAddress((uint32_t)0)) { err = String("cannot resolve ") + host; return false; }
+  }
+  return visitAddr(ip, 80, err);
 }
 
 uint32_t Net::epoch() const {
@@ -286,7 +418,37 @@ void Net::setupRoutes() {
     d["apMode"] = n.apMode;
     d["epoch"] = self->epoch();
     d["uptimeSec"] = millis() / 1000;
+    if (self->pet->hasVisitor()) {
+      JsonObject v = doc["visitor"].to<JsonObject>();
+      v["name"] = self->pet->visitorName();
+      v["species"] = self->pet->visitorSpeciesKey();
+    }
     sendJson(doc);
+  });
+
+  // Visit a given board now (testing), or look for one on the LAN when no host is given.
+  server.on("/api/visit", HTTP_POST, []() {
+    JsonDocument body;
+    readBody(body);
+    const char *host = body["host"] | (const char *)nullptr;
+    JsonDocument doc;
+    if (!host || !*host) {
+      self->visitNow();
+      doc["ok"] = true;
+      doc["searching"] = true;
+      return sendJson(doc);
+    }
+    String err;
+    bool ok = self->visitHost(host, err);
+    doc["ok"] = ok;
+    doc["applied"] = ok;
+    if (!ok) doc["error"] = err;
+    else {
+      JsonObject v = doc["visitor"].to<JsonObject>();
+      v["name"] = self->pet->visitorName();
+      v["species"] = self->pet->visitorSpeciesKey();
+    }
+    sendJson(doc, ok ? 200 : 400);
   });
 
   server.on("/api/events", HTTP_GET, []() {

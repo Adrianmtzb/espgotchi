@@ -49,3 +49,9 @@
 #define BATTERY_CHARGE_RISE_MV 40         // voltage climb over the trend window that reads as "charging"
 #define BATTERY_TREND_WINDOW_MS 60000
 #define BATTERY_TREND_STEP_MS 5000
+
+// Visits between boards on the same LAN (mDNS _espgotchi._tcp). A board alone finds nobody and stays quiet.
+#define VISIT_INTERVAL_MS 300000UL  // how often to look for a neighbour
+#define VISIT_FIRST_MS 60000UL      // first look after the WiFi comes up
+#define VISIT_DURATION_MS 20000UL   // how long the friend stays in the room
+#define VISIT_HTTP_TIMEOUT_MS 400   // per fetch, so the loop never stalls for long
