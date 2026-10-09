@@ -15,11 +15,21 @@ Este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
   que devuelve `queued` y `position`, y responde `429 busy` con la cola llena. `/api/state` expone
   `busy`, `busyMs` y `queued`; la web y el MCP lo muestran. En la placa, una acción encolada suena
   con el tick y parpadea en ámbar.
+- Indicador de cola en pantalla: mientras hay acciones esperando, junto a la píldora de etapa
+  aparece una píldora hueca `+N` del color de la especie (o una columna de puntos si no cabe).
+- `tools/check_consistency.mjs`, dentro de `make check` y del CI: compara el `enum MenuItem` del
+  firmware con el menú del simulador de la landing, las especies de `shared/sprites.json` con el
+  MCP, la web y la landing, y los tipos que acepta `POST /api/action` con los botones de la web y
+  las herramientas del MCP. Falla con un mensaje claro cuando algo se desvía (hoy el menú del
+  dispositivo no tenía Snack y la landing sí).
 
 - Tres especies nuevas, la **edición Cute**: **Mimi** (`mimi`, gatita blanca con lazo rojo y
   vestido rosa), **Momo** (`momo`, conejita crema con una flor en la oreja) y **Pingo** (`pingo`,
   pingüino con bufanda a rayas). Línea de evolución completa, tres formas adultas y frames dormidos
   generados, como el resto. Disponibles en la web, la landing, el MCP y la consola (`reset mimi`).
+- Décima especie, la **edición Fantasy**: **Nova** (`unicorn`, unicornio blanca con crin rosa,
+  cuerno dorado y acento lila). Huevo con estrella, línea de evolución completa, tres formas adultas
+  y frames dormidos generados. Disponible en la web, la landing, el MCP y la consola (`reset unicorn`).
 - Soporte para una segunda placa, la **Waveshare ESP32-S3-Touch-LCD-1.69** (`make build BOARD=s3`):
   pantalla ST7789V2 de 240×280, táctil CST816 (tap sobre un icono, swipe para recorrer el menú,
   pulsación larga), zumbador en lugar del LED, indicador de batería en pantalla y en `/api/info`,
@@ -31,6 +41,10 @@ Este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
   consola (`host <nombre>`), para que dos placas convivan en la misma red. Por defecto sigue
   siendo `espgotchi.local`.
 - Ajuste `nightDim` (web, API) para desactivar la atenuación automática de 22:00 a 07:00.
+- Sonidos ambiente en placas con zumbador: un ronquido suave cada ~8 s mientras el pet duerme
+  (solo de día, nunca entre 22:00 y 07:00), un estornudo al enfermar y otro cada ~30 s mientras
+  siga enfermo, y un saludo de dos notas cuando la placa conecta al WiFi (espera a que termine la
+  melodía de arranque, nunca la pisa).
 - Sonido de popó en placas con zumbador: un plop descendente cuando aparece una caca nueva (no
   suena si el pet duerme).
 - Sonidos por acción en placas con zumbador: comer, snack, jugar, mimar, limpiar, dormir y

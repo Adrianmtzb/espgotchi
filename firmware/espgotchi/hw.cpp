@@ -81,6 +81,9 @@ TUNE(T_BOOT, 70, 523, 659, 784, 0, 1047);                     // power on: C E G
 TUNE(T_SAD, 220, 392, 349, 311, 262);                         // death
 TUNE(T_POWEROFF, 120, 784, 523, 392);                         // shutting down
 TUNE(T_POOP, 70, 196, 165, 0, 131, 110, 98);                  // a sliding, embarrassed plop
+TUNE(T_SNORE, 120, 165, 131);                                 // soft low snore: E3 down to C3, short
+TUNE(T_SNEEZE, 40, 1319, 1760, 2349, 2794, 0, 392, 294);      // ah-ah-ah... choo: rising squeak, rest, low drop
+TUNE(T_HELLO, 90, 1047, 1568);                                // WiFi up: C6 G6, a short greeting
 #undef TUNE
 #define PLAY(name) do { seq = name; seqLen = name##_LEN; seqPos = 1; seqStep = name##_STEP; toneNow(name[0], seqStep); } while (0)
 #endif
@@ -106,9 +109,20 @@ void hwTune(Tune t) {
     case TUNE_SAD: PLAY(T_SAD); break;
     case TUNE_POWEROFF: PLAY(T_POWEROFF); break;
     case TUNE_POOP: PLAY(T_POOP); break;
+    case TUNE_SNORE: PLAY(T_SNORE); break;
+    case TUNE_SNEEZE: PLAY(T_SNEEZE); break;
+    case TUNE_HELLO: PLAY(T_HELLO); break;
   }
 #else
   (void)t;
+#endif
+}
+
+bool hwTunePlaying() {
+#if HAS_BUZZER
+  return toneUntil != 0;
+#else
+  return false;
 #endif
 }
 

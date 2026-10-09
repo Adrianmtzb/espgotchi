@@ -44,8 +44,11 @@ jobs:
         run: make deps
 
       # Generated files are committed; fail if someone edited them by hand or
-      # forgot to regenerate after touching the sources.
-      - name: Check generated assets and manifest
+      # forgot to regenerate after touching the sources. The same target runs
+      # tools/check_consistency.mjs so the device menu, species and action
+      # types cannot drift between the firmware, the web panel, the landing
+      # simulator and the MCP server.
+      - name: Check generated assets, manifest and cross-component consistency
         run: make check
 
       - name: Compile

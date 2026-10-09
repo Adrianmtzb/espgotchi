@@ -337,7 +337,7 @@ function drawScreen() {
 setInterval(drawScreen, 100);
 
 // ---- species picker ----
-const SEASONS = { halloween: { tag: '🎃 Halloween', color: '#ff8c1a' }, cute: { tag: '🎀 Cute', color: '#ff8fb1' } };
+const SEASONS = { halloween: { tag: '🎃 Halloween', color: '#ff8c1a' }, cute: { tag: '🎀 Cute', color: '#ff8fb1' }, fantasy: { tag: '🦄 Fantasy', color: '#c77dff' } };
 function buildPicker() {
   const box = $('species'); box.innerHTML = '';
   for (const [key, t] of Object.entries(sheet.species)) {

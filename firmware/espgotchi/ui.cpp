@@ -232,13 +232,40 @@ void Ui::pickTheme(const Pet &pet, bool night) {
   muted = mix(fg, bg, 110);
 }
 
+// Care actions waiting behind the current animation (Pet::queued()), drawn in the top bar
+// band between `left` and `right`: a hollow "+N" pill in the accent color (hollow = not started
+// yet, next to the solid stage pill). When the bar is crowded it degrades to a column of N
+// dots, and to nothing rather than running into the name. nearLeft anchors it at `left`
+// (landscape with the menu open, where there is no stage pill to sit next to).
+void Ui::drawQueued(uint8_t n, int16_t left, int16_t right, bool nearLeft) {
+  if (!n) return;
+  if (n > PET_QUEUE_MAX) n = PET_QUEUE_MAX;
+  char buf[4];
+  snprintf(buf, sizeof(buf), "+%u", n);
+  const int16_t w = textWidth(buf) + 12;
+  if (right - left >= w) {
+    const int16_t x = nearLeft ? left : right - w;
+    gfx->drawRoundRect(x, 6, w, 16, 8, accent);
+    text(x + 6, 10, buf, fg);
+    return;
+  }
+  if (right - left < 5) return;
+  const int16_t x = nearLeft ? left + 1 : right - 4, y0 = 14 - (n - 1) * 2;
+  for (uint8_t i = 0; i < n; i++) gfx->fillCircle(x, y0 + i * 4, 1, accent);
+}
+
 // nameOnly: the landscape menu grid sits where the pill, battery and wifi dot go.
 void Ui::drawTopBar(const Pet &pet, const NetInfo &net, bool nameOnly) {
   const PetState &s = pet.state();
   gfx->setFont(portrait ? &FreeSans9pt7b : &FreeSansBold12pt7b);
-  text(8 + topInset, portrait ? 18 : 21, s.name, fg);
+  const int16_t nameX = 8 + topInset;
+  text(nameX, portrait ? 18 : 21, s.name, fg);
+  const int16_t nameEnd = nameX + textWidth(s.name);
   gfx->setFont(nullptr);
-  if (nameOnly) return;
+  if (nameOnly) {
+    drawQueued(pet.queued(), nameEnd + 8, panelX - 6, true);
+    return;
+  }
   // stage / age pill
   char buf[20];
   if (s.stage == STAGE_EGG) snprintf(buf, sizeof(buf), "egg  %lus", (unsigned long)s.eggSec);
@@ -259,6 +286,7 @@ void Ui::drawTopBar(const Pet &pet, const NetInfo &net, bool nameOnly) {
   int16_t x = right - w;
   gfx->fillRoundRect(x, 6, w, 16, 8, accent);
   text(x + 7, 10, buf, C_INK);
+  drawQueued(pet.queued(), nameEnd + 6, x - 5, false);
   // wifi dot
   uint16_t wc = net.connected ? C_GOOD : (net.apMode ? C_WARN : C_BAD);
   gfx->fillCircle(W - 11 - topInset, 14, 4, wc);

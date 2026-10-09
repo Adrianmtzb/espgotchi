@@ -4,7 +4,7 @@
 [![Licencia: MIT](https://img.shields.io/badge/licencia-MIT-blue.svg)](LICENSE)
 
 Mascota virtual libre para la **Waveshare ESP32-C6-LCD-1.47** y la **Waveshare
-ESP32-S3-Touch-LCD-1.69**. Nueve especies en pixel-art, cinco etapas de evolución y un carácter que
+ESP32-S3-Touch-LCD-1.69**. Diez especies en pixel-art, cinco etapas de evolución y un carácter que
 depende de los cuidados. Se controla desde el botón BOOT, desde la pantalla táctil en la S3, o
 desde una web que sirve el propio ESP32 por WiFi. No necesita app ni servidor.
 
@@ -28,7 +28,7 @@ Dos placas soportadas. El sketch elige el pinout por el target del compilador
 |---|---|---|
 | Pantalla | ST7789 172×320, horizontal por defecto | ST7789V2 240×280, esquinas redondeadas |
 | Entrada | botón BOOT | botón BOOT + táctil CST816 (tap, swipe, pulsación larga) |
-| Feedback | LED WS2812 según el humor | zumbador (tic al aceptar, zumbido grave al rechazar, arpegio al evolucionar, plop al hacer popó) |
+| Feedback | LED WS2812 según el humor | zumbador (tic al aceptar, zumbido grave al rechazar, arpegio al evolucionar, plop al hacer popó, ronquidos al dormir, estornudos si enferma y un saludo al conectar al WiFi) |
 | Extras | — | batería con indicador en pantalla y API, botón PWR para apagar |
 | Ficha | [BOARD.md](BOARD.md) | [BOARD-S3-TOUCH-1.69.md](BOARD-S3-TOUCH-1.69.md) |
 
@@ -57,13 +57,14 @@ El panel necesita offset de columna 34 e inversión de color activada. No hay t�
 
 ## Qué hace
 
-- **Nueve especies** con estilo propio, cada una con huevo, bebé, adolescente y adulto en
+- **Diez especies** con estilo propio, cada una con huevo, bebé, adolescente y adulto en
   pixel-art de 24×24 y tema de color para pantalla y web: **Kawaii** (gatito pastel), **Alien**
   (verde con antenas), **Dino** (con crestas naranjas), **Edgerunner** (gato cyberpunk con
   visor neón) y la **edición especial de Halloween**: **Boo** (fantasma de sábana que de adulto
   gana corona) y **Jack** (calabaza tallada que acaba con sombrero de bruja), y la **edición
   Cute**: **Mimi** (gatita con lazo), **Momo** (conejita con flor) y **Pingo** (pingüino con
-  bufanda). Al crear un huevo se elige la especie o se deja al azar.
+  bufanda), y la **edición Fantasy**: **Nova** (unicornio blanca con crin rosa y cuerno dorado).
+  Al crear un huevo se elige la especie o se deja al azar.
 - **Pantalla**: habitación con el color de la especie, mascota animada con sombra, panel de
   estadísticas (comida, diversión, energía, limpieza, salud), cacas, Zz al dormir, alerta cuando
   necesita algo, calavera si muere. Modo noche (22:00–07:00 o luces apagadas) con cielo
@@ -110,7 +111,7 @@ make build     # regenera sprites.h y web_assets.h y compila (BOARD=c6 por defec
 make build-all # compila las dos placas
 make flash     # compila y sube (detecta /dev/cu.usbmodem*; o PORT=...; BOARD=s3 para la S3)
 make monitor   # consola serie a 115200; escribe 'help'
-make check     # valida manifest, versión y ficheros generados (lo mismo que el CI)
+make check     # valida manifest, versión, ficheros generados y coherencia firmware/web/landing/MCP (lo mismo que el CI)
 make sprites   # hoja PNG con todos los sprites (macOS)
 make shot      # captura la pantalla real de la placa en PNG (sin pyserial)
 make           # lista todos los atajos
@@ -161,7 +162,7 @@ brillo queda limitado a 80.
 | `GET /api/state` | Estado del pet (`stage`, `form`, `nextEvolutionSec`, stats…) y del dispositivo |
 | `GET /api/events` | Últimos 16 eventos, el más reciente primero |
 | `GET /api/info` | Placa, firmware, IP, RSSI, heap, TZ, brillo |
-| `POST /api/action` | `{"type":"feed"|"snack"|"play"|"pet"|"clean"|"sleep"|"medicine"|"hatch"|"reset"}`; con `reset`, opcional `"species":"kawaii"|"alien"|"dino"|"edge"|"ghost"|"pumpkin"|"mimi"|"momo"|"pingo"` |
+| `POST /api/action` | `{"type":"feed"|"snack"|"play"|"pet"|"clean"|"sleep"|"medicine"|"hatch"|"reset"}`; con `reset`, opcional `"species":"kawaii"|"alien"|"dino"|"edge"|"ghost"|"pumpkin"|"mimi"|"momo"|"pingo"|"unicorn"` |
 | `POST /api/name` | `{"name":"Pixel"}` (máx. 15 caracteres) |
 | `POST /api/settings` | `{"tz":"...", "brightness": 5..255, "orientation":"landscape"|"landscape-flipped"|"portrait"|"portrait-flipped", "hostname":"espgotchi", "nightDim": true}` (orientación y hostname reinician la placa; `nightDim` activa o quita la atenuación nocturna) |
 | `POST /api/wifi` | `{"ssid":"...","pass":"..."}` o formulario; guarda y reinicia |

@@ -86,10 +86,11 @@ monitor: ## Open the serial console (type 'help' inside; Ctrl-C to leave)
 	@test -n "$(PORT)" || { echo "No serial port found."; exit 1; }
 	arduino-cli monitor -p $(PORT) --config baudrate=$(BAUD)
 
-check: ## Validate the installer manifest, the version and the generated assets
+check: ## Validate the installer manifest, the version, the generated assets and firmware/web/landing/MCP consistency
 	@python3 scripts/check-manifest.py
 	@node tools/gen_sprites.mjs --check
 	@node tools/gen_web.mjs --check
+	@node tools/check_consistency.mjs
 
 # The manifest names one set of parts per board: <part>-<board>.bin. CI assembles the same.
 og: ## Render the landing page social card to _site/og.png (no dependencies)

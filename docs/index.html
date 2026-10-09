@@ -7,19 +7,19 @@
 <title>ESPgotchi</title>
 <!-- Search engines read this, not visitors: it cannot follow the language toggle,
      so it carries both languages on one line. -->
-<meta name="description" content="Open-source virtual pet for the Waveshare ESP32-C6-LCD-1.47 and ESP32-S3-Touch-LCD-1.69: nine pixel-art species (Halloween and Cute editions included), evolutions, a web panel served by the chip itself. Installs from your browser. — Mascota virtual libre para la Waveshare ESP32-C6-LCD-1.47 y la ESP32-S3-Touch-LCD-1.69: nueve especies en pixel-art (con ediciones Halloween y Cute), evoluciones, web servida por el propio chip. Se instala desde el navegador.">
+<meta name="description" content="Open-source virtual pet for the Waveshare ESP32-C6-LCD-1.47 and ESP32-S3-Touch-LCD-1.69: ten pixel-art species (Halloween, Cute and Fantasy editions included), evolutions, a web panel served by the chip itself. Installs from your browser. — Mascota virtual libre para la Waveshare ESP32-C6-LCD-1.47 y la ESP32-S3-Touch-LCD-1.69: diez especies en pixel-art (con ediciones Halloween, Cute y Fantasy), evoluciones, web servida por el propio chip. Se instala desde el navegador.">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="ESPgotchi">
 <meta property="og:title" content="ESPgotchi: a pixel pet that lives on a $15 ESP32 board">
-<meta property="og:description" content="Open-source virtual pet for two Waveshare ESP32 boards. Nine pixel-art species, evolutions, a web panel served by the chip itself. Installs from your browser.">
+<meta property="og:description" content="Open-source virtual pet for two Waveshare ESP32 boards. Ten pixel-art species, evolutions, a web panel served by the chip itself. Installs from your browser.">
 <meta property="og:url" content="https://adrianmtzb.github.io/espgotchi/">
 <meta property="og:image" content="https://adrianmtzb.github.io/espgotchi/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="ESPgotchi title in pixel letters with the nine species lined up on their room colors">
+<meta property="og:image:alt" content="ESPgotchi title in pixel letters with the ten species lined up on their room colors">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="ESPgotchi: a pixel pet that lives on a $15 ESP32 board">
-<meta name="twitter:description" content="Open-source virtual pet for two Waveshare ESP32 boards. Nine pixel-art species, a web panel served by the chip itself. Installs from your browser.">
+<meta name="twitter:description" content="Open-source virtual pet for two Waveshare ESP32 boards. Ten pixel-art species, a web panel served by the chip itself. Installs from your browser.">
 <meta name="twitter:image" content="https://adrianmtzb.github.io/espgotchi/og.png">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'><rect width='16' height='16' rx='3' fill='%230b0d16'/><rect x='4' y='3' width='8' height='7' fill='%23ff5c8a'/><rect x='3' y='5' width='10' height='6' fill='%23ff5c8a'/><rect x='5' y='6' width='2' height='2' fill='%230b0d16'/><rect x='9' y='6' width='2' height='2' fill='%230b0d16'/><rect x='5' y='11' width='6' height='2' fill='%23ff5c8a'/></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -368,10 +368,10 @@ footer p{margin:0;max-width:70ch}
   <div>
     <p class="eyebrow">Waveshare ESP32-C6-LCD-1.47 · ESP32-S3-Touch-LCD-1.69 · open source · MIT</p>
     <h1 style="margin-top:.8rem"><span lang="es">Una mascota que <em>vive</em> en 172 × 320 píxeles.</span><span lang="en">A pet that <em>lives</em> in 172 × 320 pixels.</span></h1>
-    <p class="lede" lang="es">Nueve especies en pixel-art, cinco etapas de evolución y un carácter que depende de cómo
+    <p class="lede" lang="es">Diez especies en pixel-art, cinco etapas de evolución y un carácter que depende de cómo
       la cuides. Corre en una placa de <b>menos de 15 €</b> con un solo botón, y el propio chip sirve el panel
       para cuidarla desde el móvil.</p>
-    <p class="lede" lang="en">Nine pixel-art species, five evolution stages and a personality shaped by how you look
+    <p class="lede" lang="en">Ten pixel-art species, five evolution stages and a personality shaped by how you look
       after it. Runs on a board that costs <b>under $15</b>, with a single button, and the chip itself serves the panel
       you care for it from.</p>
     <div class="cta">
@@ -526,7 +526,7 @@ footer p{margin:0;max-width:70ch}
 <section id="species">
   <div class="wrap">
     <div class="sec-head">
-      <p class="eyebrow" lang="es">Seis especies</p><p class="eyebrow" lang="en">Six species</p>
+      <p class="eyebrow" lang="es">Diez especies</p><p class="eyebrow" lang="en">Ten species</p>
       <h2 lang="es">Del huevo al anciano, y lo que pase por medio depende de ti.</h2>
       <h2 lang="en">From egg to elder, and what happens in between is up to you.</h2>
       <p lang="es">Cada especie tiene su propio huevo, sus frames de bebé, niño, adolescente y adulto, y
@@ -534,13 +534,15 @@ footer p{margin:0;max-width:70ch}
         <b>elite</b>. Con cinco errores o la salud por los suelos, la <b>feral</b>. El resto, el adulto normal.
         Los dormidos no están dibujados: se generan cerrando los ojos del sprite despierto.
         <b>Boo</b> y <b>Jack</b> son la edición especial de Halloween: un fantasma y una calabaza que evolucionan igual que el resto.
-        <b>Mimi</b>, <b>Momo</b> y <b>Pingo</b> son la edición Cute: una gatita, una conejita y un pingüino con paletas pastel y un accesorio cada uno.</p>
+        <b>Mimi</b>, <b>Momo</b> y <b>Pingo</b> son la edición Cute: una gatita, una conejita y un pingüino con paletas pastel y un accesorio cada uno.
+        <b>Nova</b> inaugura la edición Fantasy: una unicornio blanca con crin rosa y cuerno dorado.</p>
       <p lang="en">Each species has its own egg, its baby, child, teen and adult frames, and three adult forms.
         One care mistake or fewer, high health and good mood gets you the <b>elite</b> form. Five mistakes or
         rock-bottom health, the <b>feral</b> one. Everything else, the regular adult. Sleeping frames are not
         drawn by hand: they are generated by closing the eyes of the awake sprite.
         <b>Boo</b> and <b>Jack</b> are the Halloween special edition: a ghost and a pumpkin that evolve like everyone else.
-        <b>Mimi</b>, <b>Momo</b> and <b>Pingo</b> are the Cute edition: a kitten, a bunny and a penguin in pastel palettes, each with its own accessory.</p>
+        <b>Mimi</b>, <b>Momo</b> and <b>Pingo</b> are the Cute edition: a kitten, a bunny and a penguin in pastel palettes, each with its own accessory.
+        <b>Nova</b> opens the Fantasy edition: a white unicorn with a pink mane and a golden horn.</p>
     </div>
     <div class="evo" id="evo"></div>
   </div>
@@ -1152,7 +1154,7 @@ function buildHardware() {
   }
 }
 function buildSpecies() {
-  const SEASONS = { halloween: { es: ['Halloween', 'Edición especial Halloween'], en: ['Halloween', 'Halloween special'], color: '#ff8c1a', ink: '#1a0f1f' }, cute: { es: ['Cute', 'Edición Cute'], en: ['Cute', 'Cute edition'], color: '#ff8fb1', ink: '#3a1f2a' } };
+  const SEASONS = { halloween: { es: ['Halloween', 'Edición especial Halloween'], en: ['Halloween', 'Halloween special'], color: '#ff8c1a', ink: '#1a0f1f' }, cute: { es: ['Cute', 'Edición Cute'], en: ['Cute', 'Cute edition'], color: '#ff8fb1', ink: '#3a1f2a' }, fantasy: { es: ['Fantasy', 'Edición Fantasy'], en: ['Fantasy', 'Fantasy edition'], color: '#c77dff', ink: '#1a1030' } };
   const seasonTag = (short, season) => { const d = SEASONS[season]; const t = document.createElement('span'); t.className = 'season'; t.style.background = d.color; t.style.color = d.ink; const es = document.createElement('span'); es.lang = 'es'; es.textContent = d.es[short ? 0 : 1]; const en = document.createElement('span'); en.lang = 'en'; en.textContent = d.en[short ? 0 : 1]; t.append(es, en); return t; };
   for (const [key, t] of Object.entries(sheet.species)) {
     const b = document.createElement('button'); b.type = 'button'; b.dataset.key = key; b.style.setProperty('--sp', t.accent);
@@ -1161,7 +1163,7 @@ function buildSpecies() {
     const row = document.createElement('div'); row.className = 'row'; row.dataset.key = key; row.style.setProperty('--sp', t.accent);
     const h = document.createElement('div'); const h3 = document.createElement('h3'); h3.textContent = t.label; if (SEASONS[t.season]) h3.append(seasonTag(false, t.season)); h.append(h3);
     const small = document.createElement('small'); const es = document.createElement('span'); es.lang = 'es'; const en = document.createElement('span'); en.lang = 'en';
-    const blurbs = { kawaii: ['Gatito pastel. Orejas, mejillas y mucho rosa.', 'Pastel kitten. Ears, blush and lots of pink.'], alien: ['Verde, antenas y ojos enormes.', 'Green, antennae and enormous eyes.'], dino: ['Crestas naranjas y colmillos amables.', 'Orange crests and friendly fangs.'], edge: ['Gato cyberpunk con visor de neón.', 'Cyberpunk cat with a neon visor.'], ghost: ['Fantasma de sábana con corona de adulto.', 'Sheet ghost that earns a crown as an adult.'], pumpkin: ['Calabaza tallada con sombrero de bruja.', 'Carved pumpkin that grows a witch hat.'], mimi: ['Gatita blanca con lazo rojo y vestidito rosa.', 'White kitten with a red bow and a pink dress.'], momo: ['Conejita crema con una flor en la oreja.', 'Cream bunny with a flower on one ear.'], pingo: ['Pingüino con bufanda a rayas.', 'Penguin in a striped scarf.'] };
+    const blurbs = { kawaii: ['Gatito pastel. Orejas, mejillas y mucho rosa.', 'Pastel kitten. Ears, blush and lots of pink.'], alien: ['Verde, antenas y ojos enormes.', 'Green, antennae and enormous eyes.'], dino: ['Crestas naranjas y colmillos amables.', 'Orange crests and friendly fangs.'], edge: ['Gato cyberpunk con visor de neón.', 'Cyberpunk cat with a neon visor.'], ghost: ['Fantasma de sábana con corona de adulto.', 'Sheet ghost that earns a crown as an adult.'], pumpkin: ['Calabaza tallada con sombrero de bruja.', 'Carved pumpkin that grows a witch hat.'], mimi: ['Gatita blanca con lazo rojo y vestidito rosa.', 'White kitten with a red bow and a pink dress.'], momo: ['Conejita crema con una flor en la oreja.', 'Cream bunny with a flower on one ear.'], pingo: ['Pingüino con bufanda a rayas.', 'Penguin in a striped scarf.'], unicorn: ['Unicornio blanca con crin rosa y cuerno dorado.', 'White unicorn with a pink mane and a golden horn.'] };
     es.textContent = (blurbs[key] || ['', ''])[0]; en.textContent = (blurbs[key] || ['', ''])[1]; small.append(es, en); h.append(small); row.append(h);
     const strip = document.createElement('div'); strip.className = 'strip';
     const cells = [['egg', 'egg · 1 min'], ['baby_0', 'baby · 30 min'], ['child_0', 'child · 2 h'], ['teen_0', 'teen · 8 h'], ['adult_0', 'adult · 48 h'], ['adult_elite_0', 'elite', 'alt'], ['adult_feral_0', 'feral', 'alt'], ['adult_elder_0', 'elder'], ['adult_sleep', 'asleep', 'alt']];

@@ -8,7 +8,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 
 const REQUEST_TIMEOUT_MS = 5000;
-const SPECIES = ["kawaii", "alien", "dino", "edge", "ghost", "pumpkin", "mimi", "momo", "pingo"];
+const SPECIES = ["kawaii", "alien", "dino", "edge", "ghost", "pumpkin", "mimi", "momo", "pingo", "unicorn"];
 
 // ---------------------------------------------------------------------------
 // Board address
@@ -167,7 +167,7 @@ const MOOD_EMOJI = {
   happy: "😊", neutral: "😐", sad: "😢", angry: "😠", sick: "🤒", asleep: "😴", sleeping: "😴",
   hungry: "😋", dead: "💀", egg: "🥚", excited: "🤩", bored: "😑",
 };
-const SPECIES_EMOJI = { kawaii: "🐣", alien: "👾", dino: "🦖", edge: "🤖", ghost: "👻", pumpkin: "🎃", mimi: "🎀", momo: "🐰", pingo: "🐧" };
+const SPECIES_EMOJI = { kawaii: "🐣", alien: "👾", dino: "🦖", edge: "🤖", ghost: "👻", pumpkin: "🎃", mimi: "🎀", momo: "🐰", pingo: "🐧", unicorn: "🦄" };
 
 function renderScreen(pet) {
   const lines = [];
@@ -286,7 +286,7 @@ server.registerTool("new_egg", {
     "DESTRUCTIVE: erases the current pet and starts a new egg (next generation). Only use when the pet is dead and the human has explicitly agreed. " +
     "Requires confirm=true. Optionally choose the species.",
   inputSchema: {
-    species: z.enum(SPECIES).optional().describe("Species of the new egg: kawaii, alien, dino, edge, the Halloween special edition ghost (Boo) or pumpkin (Jack), or the Cute edition mimi (cat with a bow), momo (bunny with a flower) or pingo (penguin with a scarf). Random/default if omitted."),
+    species: z.enum(SPECIES).optional().describe("Species of the new egg: kawaii, alien, dino, edge, the Halloween special edition ghost (Boo) or pumpkin (Jack), the Cute edition mimi (cat with a bow), momo (bunny with a flower) or pingo (penguin with a scarf), or the Fantasy edition unicorn (Nova). Random/default if omitted."),
     confirm: z.literal(true).describe("Must be true. Acknowledges that the current pet will be erased."),
   },
   annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },

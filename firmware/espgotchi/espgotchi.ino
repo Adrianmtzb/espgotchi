@@ -25,11 +25,14 @@ static PetAnim lastSeenAnim = ANIM_NONE;
 static uint8_t lastSeenAnimFrame = 0;
 static bool lastSeenLightsOff = false, lastSeenDead = false;
 static uint8_t lastSeenPoops = 0;
+static bool lastSeenSick = false, lastSeenConnected = false, helloPending = false;
+static uint32_t nextSnoreMs = 0, nextSneezeMs = 0;  // ambient sounds: snore while asleep, sneeze while sick
 static uint32_t menuShownMs = 0;
 static uint32_t infoUntilMs = 0;
 static uint32_t lastTickMs = 0;
 static uint32_t lastRenderMs = 0;
 static uint32_t blOverrideUntil = 0;
+static const uint32_t SNORE_PERIOD_MS = 8000, SNEEZE_PERIOD_MS = 30000;
 static uint32_t cornerTestUntil = 0;
 // Touch calibration: five targets in canvas coordinates; each tap logs canvas vs raw controller values.
 static int8_t tcalIdx = -1;
@@ -248,7 +251,7 @@ static void handleSerialLine(String line) {
   rest.trim();
   cmd.toLowerCase();
   if (cmd == "help") {
-    Serial.println("commands: status | wifi <ssid> <pass> | forget | name <name> | tz <posix-tz> | host <name> | feed | snack | play | pet | clean | sleep | med | poop | bl [0-255] | shot | press | hold | tp | tcal | gpio <n> | corners | boot | hatch | reset [kawaii|alien|dino|edge|ghost|pumpkin|mimi|momo|pingo] | reboot");
+    Serial.println("commands: status | wifi <ssid> <pass> | forget | name <name> | tz <posix-tz> | host <name> | feed | snack | play | pet | clean | sleep | med | poop | bl [0-255] | shot | press | hold | tp | tcal | gpio <n> | corners | boot | hatch | reset [kawaii|alien|dino|edge|ghost|pumpkin|mimi|momo|pingo|unicorn] | reboot");
   } else if (cmd == "status") {
     JsonDocument doc;
     pet.toJson(doc.to<JsonObject>());
@@ -333,6 +336,7 @@ void setup() {
   lastSeenPoops = pet.state().poops;
   lastSeenDead = pet.state().dead;
   lastSeenAnim = pet.anim();
+  lastSeenSick = pet.state().sick;
   net.begin(&pet);
   Serial.println("[sys] ready. type 'help' for commands");
 }
@@ -351,6 +355,11 @@ void loop() {
     uint8_t before = pet.state().stage;
     pet.tick(net.epoch());
     if (pet.state().stage != before) ledCelebrate(4000);
+    bool connectedNow = net.info().connected;  // sampled here: info() builds Strings, once a second is plenty
+    if (connectedNow != lastSeenConnected) {   // greet once per (re)connection, after the boot tune has finished
+      lastSeenConnected = connectedNow;
+      if (connectedNow) helloPending = true;
+    }
   }
   if (pet.state().stage != lastSeenStage) {  // also covers hatch/reset from button, web or CLI
     if (lastSeenStage != STAGE_COUNT && pet.state().stage != STAGE_EGG) ledCelebrate(4000);
@@ -387,6 +396,25 @@ void loop() {
     lastSeenDead = pet.state().dead;
     if (lastSeenDead) hwTune(TUNE_SAD);
   }
+  // Ambient sounds. Periodic ones never interrupt a running tune; sneezes skip a sleeping pet and the snore
+  // skips the 22:00-07:00 night window, so the buzzer cannot wake anyone up.
+  if (pet.state().sick != lastSeenSick) {  // first sneeze on falling ill (unless asleep), then one every ~30 s
+    lastSeenSick = pet.state().sick;
+    nextSneezeMs = now + SNEEZE_PERIOD_MS;
+    if (lastSeenSick && !pet.state().asleep && !pet.state().dead) hwTune(TUNE_SNEEZE);
+  } else if (lastSeenSick && !pet.state().asleep && !pet.state().dead && (int32_t)(now - nextSneezeMs) >= 0) {
+    nextSneezeMs = now + SNEEZE_PERIOD_MS;
+    if (!hwTunePlaying()) hwTune(TUNE_SNEEZE);
+  }
+  if (pet.state().asleep && !pet.state().dead) {  // soft snore every ~8 s, daytime naps only
+    if ((int32_t)(now - nextSnoreMs) >= 0) {
+      nextSnoreMs = now + SNORE_PERIOD_MS;
+      if (!isNight() && !hwTunePlaying()) hwTune(TUNE_SNORE);
+    }
+  } else {
+    nextSnoreMs = now + SNORE_PERIOD_MS;  // first snore comes a full period after dozing off
+  }
+  if (helloPending && !hwTunePlaying()) { helloPending = false; hwTune(TUNE_HELLO); }
   openMenuIfClickExpired();
   // Signed compare: menuShownMs may be set later in this same iteration (button/CLI run after
   // `now` was sampled), and an unsigned subtraction would wrap and close the menu instantly.

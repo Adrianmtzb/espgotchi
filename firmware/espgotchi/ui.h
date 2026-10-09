@@ -47,6 +47,7 @@ class Ui {
   void drawBubbles(int16_t x, int16_t y, int16_t w, int16_t h, uint32_t t);
   void drawBar(int16_t x, int16_t y, int16_t w, int16_t h, int16_t pct);
   void drawTopBar(const Pet &pet, const NetInfo &net, bool nameOnly);
+  void drawQueued(uint8_t n, int16_t left, int16_t right, bool nearLeft);
   void drawRoom(const Pet &pet, bool night);
   void drawStats(const Pet &pet);
   void drawMenu(int8_t sel);
