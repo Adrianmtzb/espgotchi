@@ -11,7 +11,9 @@ reflashear nada: basta con que la placa esté en la misma red.
 ## Requisitos
 
 - Node.js 18 o superior.
-- Una ESPgotchi encendida y conectada al WiFi (sirve `espgotchi.local` o su IP).
+- Una ESPgotchi encendida y alcanzable: en tu WiFi (`espgotchi.local` o su IP) o, sin internet,
+  con el ordenador conectado a la red `ESPgotchi-XXXX` de la placa (`192.168.4.1`; también
+  responde `espgotchi.local`). Todas las herramientas funcionan igual en los dos casos.
 
 ## Instalación
 

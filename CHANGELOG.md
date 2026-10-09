@@ -33,6 +33,16 @@ Este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
   instalación y la lista de herramientas del MCP, enlazada desde la navegación. El idioma inicial
   sale del navegador (español si `navigator.language` empieza por `es`, inglés si no); el
   selector sigue mandando una vez usado.
+- **Todo funciona sin internet, desde la red de la placa.** El portal cautivo abre ahora el panel
+  completo en vez del formulario de 2 KB (que sigue en `/setup` como reserva): acciones, log,
+  ajustes, huevo nuevo, todo igual que en casa. Arriba aparece una tarjeta "On its own network"
+  con el selector de redes (`GET /api/networks`, escaneo asíncrono con reescaneo), que también
+  sustituye al campo de texto de "Device & WiFi" en modo normal. Como en el AP no hay NTP, el
+  panel manda la hora del teléfono (`POST /api/time`, ignorado mientras la red de casa esté arriba) y con ella
+  funcionan el modo noche y el ajuste de lo que pasó apagada. `espgotchi.local` responde también
+  en la red de configuración, así que el MCP sirve igual con el ordenador conectado a ella.
+  `/api/state` y `/api/info` exponen `setup`, e `info` además `apSsid`. Nuevo comando serie `ap`:
+  abre la red de configuración sin borrar credenciales (se vuelve al WiFi al reiniciar).
 - Landing: SEO completo. `<title>` descriptivo, `rel="canonical"`, `theme-color` por esquema,
   `robots` con `max-image-preview:large`, `og:locale` y alternativa, `og:image:type`, JSON-LD
   `SoftwareSourceCode` (repo, licencia, autor, idiomas) sin versión para que no se desincronice
@@ -97,6 +107,12 @@ Este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
   y `new_egg` con confirmación obligatoria. Documentado en `mcp/README.md`.
 
 ### Corregido
+
+- Con credenciales guardadas que fallaban, la placa abría la red de configuración y **dejaba de
+  reintentar** la red guardada, aunque el log dijera lo contrario (un `return` temprano en modo
+  AP). Ahora reintenta cada minuto y, cuando la red vuelve, cierra la red de configuración sola.
+  El bloque de apertura además volvía a llamar a `softAP()` cada 30 s en `AP_STA` y expulsaba a
+  quien estuviera conectado.
 
 - El menú del botón se cerraba al instante cuando la pulsación llegaba después de muestrear el
   reloj en la misma vuelta del loop (desbordamiento sin signo del tiempo de espera). Se notaba

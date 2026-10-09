@@ -251,7 +251,7 @@ static void handleSerialLine(String line) {
   rest.trim();
   cmd.toLowerCase();
   if (cmd == "help") {
-    Serial.println("commands: status | wifi <ssid> <pass> | forget | name <name> | tz <posix-tz> | host <name> | feed | snack | play | pet | clean | sleep | med | poop | bat | visit [host] | bl [0-255] | shot | press | hold | tp | tcal | gpio <n> | corners | boot | hatch | reset [kawaii|alien|dino|edge|ghost|pumpkin|mimi|momo|pingo|unicorn] | reboot");
+    Serial.println("commands: status | wifi <ssid> <pass> | forget | ap | name <name> | tz <posix-tz> | host <name> | feed | snack | play | pet | clean | sleep | med | poop | bat | visit [host] | bl [0-255] | shot | press | hold | tp | tcal | gpio <n> | corners | boot | hatch | reset [kawaii|alien|dino|edge|ghost|pumpkin|mimi|momo|pingo|unicorn] | reboot");
   } else if (cmd == "status") {
     JsonDocument doc;
     pet.toJson(doc.to<JsonObject>());
@@ -270,6 +270,10 @@ static void handleSerialLine(String line) {
     Serial.println("wifi credentials erased, rebooting into setup mode...");
     delay(200);
     ESP.restart();
+  } else if (cmd == "ap") {
+    net.openAp();
+    NetInfo n = net.info();
+    Serial.printf("setup network %s open -> http://%s (credentials kept; reboot to rejoin WiFi)\n", n.ssid, n.ip);
   } else if (cmd == "wifi") {
     int sp2 = rest.indexOf(' ');
     String ssid = sp2 < 0 ? rest : rest.substring(0, sp2);

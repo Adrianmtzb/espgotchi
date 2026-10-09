@@ -9,7 +9,13 @@ class Net {
   void begin(Pet *pet);
   void loop();
   NetInfo info() const;
-  uint32_t epoch() const;  // 0 until NTP sync
+  uint32_t epoch() const;  // 0 until the clock is set (NTP, or a browser on the setup network)
+  // Set the clock from outside (the web panel sends its own time while there is no internet).
+  // Rejected while the home network (and NTP) is up, and for epochs that are obviously wrong.
+  bool setClock(uint32_t epoch);
+  // Open the setup network now without touching the saved credentials, e.g. to take the pet
+  // somewhere with no WiFi. STA stays off until the next boot.
+  void openAp();
   bool saveCredentials(const char *ssid, const char *pass);
   void forgetCredentials();
   void setTz(const char *tz);
@@ -35,6 +41,7 @@ class Net {
   bool connected = false;
   bool mdnsStarted = false;
   bool timeConfigured = false;
+  bool apHeld = false;  // openAp(): keep the AP, do not retry STA
   String host;
   uint32_t connectStartMs = 0;
   uint32_t lastReconnectMs = 0;
@@ -48,5 +55,7 @@ class Net {
   void startAp();
   void startSta();
   void onConnected();
+  void startMdns();
+  void closeAp();
   void setupRoutes();
 };

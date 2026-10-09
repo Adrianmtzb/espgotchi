@@ -148,12 +148,23 @@ con **portal cautivo**:
 
 1. Conéctate a la red abierta `ESPgotchi-XXXX` (sin contraseña; el sufijo sale de la MAC y no
    cambia).
-2. El sistema abre solo la página de configuración (si no, ve a `http://192.168.4.1`). Elige tu
-   red en la lista de redes detectadas, pon la contraseña y guarda. La placa reinicia.
+2. El sistema abre solo el panel (si no, ve a `http://192.168.4.1` o `http://espgotchi.local`).
+   Arriba del todo hay una tarjeta "On its own network" con la lista de redes detectadas: elige
+   la tuya, pon la contraseña y guarda. La placa reinicia.
 3. En tu red abre `http://espgotchi.local/` (o la IP que muestra la página Info del botón).
 
-Si las credenciales guardadas fallan, el portal lo indica y permite corregirlas. Alternativas por
-serie: `wifi MiRed MiClave` para configurar, `forget` para borrar y volver al modo setup. La zona horaria por defecto es
+**No hace falta internet para usar la mascota.** En la red de la placa el panel es el completo:
+acciones, log, ajustes, huevo nuevo, brillo, orientación… todo igual que en casa. Lo único que
+no hay es hora NTP, así que el panel manda la hora del teléfono (`POST /api/time`) y con eso
+funcionan el modo noche y el ajuste de lo que pasó mientras estuvo apagada. Las visitas entre
+placas sí necesitan una red común. Si prefieres el formulario mínimo de 2 KB, sigue en
+`/setup`.
+
+Si las credenciales guardadas fallan, la tarjeta lo indica y permite corregirlas; mientras
+tanto la placa sigue intentando la red guardada cada minuto y, si vuelve, cierra la red de
+configuración sola. Alternativas por serie: `wifi MiRed MiClave` para configurar, `forget` para
+borrar y volver al modo setup, y `ap` para abrir la red de configuración sin borrar nada (para
+llevarte la mascota a un sitio sin WiFi; al reiniciar vuelve a tu red). La zona horaria por defecto es
 America/Mexico_City (`CST6`); cámbiala desde el selector de la web (ciudades comunes, o un string
 POSIX a mano) o con `tz <posix>` (por ejemplo `CET-1CEST,M3.5.0,M10.5.0/3` para España). De 22:00 a 07:00 la pantalla entra en modo noche y el
 brillo queda limitado a 80.
@@ -162,16 +173,19 @@ brillo queda limitado a 80.
 
 | Método y ruta | Descripción |
 |---|---|
-| `GET /` | Web embebida (en modo AP: formulario de WiFi) |
+| `GET /` | Web embebida, también en la red de configuración (ahí muestra el selector de WiFi arriba) |
+| `GET /setup` | Formulario mínimo de WiFi (2 KB), por si el navegador cautivo no carga la web |
+| `GET /api/networks` | Redes cercanas `{ssid, rssi, secure}`, `scanning` mientras el escaneo asíncrono no termina, `saved` y `failed`; `?rescan=1` fuerza otro escaneo |
 | `GET /sprites.json` | Sprites compartidos con la web |
 | `GET /api/state` | Estado del pet (`stage`, `form`, `nextEvolutionSec`, `spriteSlot`, stats…) y del dispositivo; `visitor: {name, species}` mientras hay un amigo de visita |
 | `GET /api/events` | Últimos 16 eventos, el más reciente primero |
-| `GET /api/info` | Placa, firmware, IP, RSSI, heap, TZ, brillo; con batería, `batteryMv`, `batteryPct`, `lowBattery` y `charging` |
+| `GET /api/info` | Placa, firmware, IP, RSSI, heap, TZ, brillo, `setup` (en su propia red, sin internet) y `apSsid`; con batería, `batteryMv`, `batteryPct`, `lowBattery` y `charging` |
 | `POST /api/action` | `{"type":"feed"|"snack"|"play"|"pet"|"clean"|"sleep"|"medicine"|"hatch"|"reset"}`; con `reset`, opcional `"species":"kawaii"|"alien"|"dino"|"edge"|"ghost"|"pumpkin"|"mimi"|"momo"|"pingo"|"unicorn"` |
 | `POST /api/name` | `{"name":"Pixel"}` (máx. 15 caracteres) |
 | `POST /api/settings` | `{"tz":"...", "brightness": 5..255, "orientation":"landscape"|"landscape-flipped"|"portrait"|"portrait-flipped", "hostname":"espgotchi", "nightDim": true}` (orientación y hostname reinician la placa; `nightDim` activa o quita la atenuación nocturna) |
 | `POST /api/visit` | `{"host":"192.168.1.50"}` o `{"host":"otro.local"}` trae de visita al pet de esa placa; sin `host`, busca una por mDNS |
 | `POST /api/wifi` | `{"ssid":"...","pass":"..."}` o formulario; guarda y reinicia |
+| `POST /api/time` | `{"epoch": 1760000000}` pone el reloj cuando no hay NTP (la web lo manda sola en la red de configuración); se ignora mientras la placa esté en tu WiFi |
 
 Ejemplo:
 

@@ -66,7 +66,8 @@ static String buildSetupPage(const String &savedSsid, bool failed) {
   page += F("<option value=''>Other network…</option></select>");
   page += F("<input id='o' name='network' placeholder='Network name (SSID)' autocomplete='off' style='display:none'>");
   page += F("<label>Password</label><input name='pass' type='password' placeholder='WiFi password' autocomplete='new-password'>"
-            "<button>Save and reboot</button></form>"
+            "<button>Save and reboot</button>"
+            "<p style='text-align:center;margin:0'><a href='/' style='color:#8fd3f4'>Skip for now and open the pet panel</a></p></form>"
             "<script>var f=document.forms[0];var sel=f.ssid;if(!sel.options.length||!sel.options[0].value){document.getElementById('o').style.display='block';}"
             "f.onsubmit=function(){if(!sel.value){var o=document.getElementById('o').value.trim();if(!o){alert('Enter the network name');return false;}sel.disabled=true;document.getElementById('o').name='ssid';}}</script></body></html>");
   if (n > 0) { WiFi.scanDelete(); WiFi.scanNetworks(true); }  // refresh for next visit
@@ -113,6 +114,7 @@ void Net::startAp() {
   WiFi.mode(WIFI_AP_STA);  // STA stays on so the setup page can scan networks
   WiFi.softAP(ssid.c_str());  // open network, no password
   startCaptiveDns();
+  startMdns();  // <host>.local answers on the setup network as well
   Serial.printf("[net] AP mode: %s (open) -> http://%s\n", ssid.c_str(), WiFi.softAPIP().toString().c_str());
   WiFi.scanNetworks(true);  // async scan so the setup page has results ready
   if (pet) pet->logEvent("WiFi setup AP: %s", ssid.c_str());
@@ -122,12 +124,8 @@ void Net::onConnected() {
   connected = true;
   Serial.printf("[net] connected, IP %s\n", WiFi.localIP().toString().c_str());
   if (pet) pet->logEvent("WiFi up: %s", WiFi.localIP().toString().c_str());
-  if (!mdnsStarted && MDNS.begin(host.c_str())) {
-    MDNS.addService("http", "tcp", 80);
-    MDNS.addServiceTxt("http", "tcp", "device", "espgotchi");
-    MDNS.addService("espgotchi", "tcp", 80);  // other boards find us through this one
-    mdnsStarted = true;
-  }
+  if (apMode) closeAp();  // the saved network came back: the setup network has done its job
+  startMdns();
   advertise();
   nextVisitMs = millis() + VISIT_FIRST_MS;
   if (!timeConfigured) {
@@ -139,35 +137,70 @@ void Net::onConnected() {
 void Net::loop() {
   if (dnsRunning) dnsServer.processNextRequest();
   server.handleClient();
-  if (apMode) return;
+  // Catch up on the time the board was off as soon as the clock is valid, whatever set it
+  // (NTP on the home network, or a phone on the setup network).
+  static bool caughtUp = false;
+  if (!caughtUp && epoch()) {
+    caughtUp = true;
+    if (pet) pet->catchUp(epoch());
+  }
+  if (apMode && (apHeld || !staSsid.length())) return;  // nothing to retry
   wl_status_t st = WiFi.status();
   if (st == WL_CONNECTED) {
     if (!connected) onConnected();
-    static bool caughtUp = false;
-    if (!caughtUp && epoch()) {
-      caughtUp = true;
-      if (pet) pet->catchUp(epoch());
-    }
     visitLoop();
   } else {
     connected = false;
     uint32_t now = millis();
-    if (now - connectStartMs > 30000 && WiFi.getMode() != WIFI_AP) {
-      // Give up after 30s and open the setup AP; keep retrying STA in background every 60s
+    if (!apMode && now - connectStartMs > 30000) {
+      // Give up after 30 s and open the setup AP. STA keeps retrying underneath (AP_STA) every
+      // 60 s; if the saved network comes back the AP is closed again in onConnected().
       Serial.println("[net] STA timeout, opening setup AP (STA keeps retrying)");
-      WiFi.mode(WIFI_AP_STA);
-      WiFi.softAP(apSsid().c_str());
-      WiFi.scanNetworks(true);
       staFailed = true;
-      startCaptiveDns();
-      apMode = true;
+      startAp();
       connectStartMs = now;
     }
-    if (now - lastReconnectMs > 15000) {
+    if (now - lastReconnectMs > (apMode ? 60000u : 15000u)) {
       lastReconnectMs = now;
       WiFi.reconnect();
     }
   }
+}
+
+void Net::startMdns() {
+  if (mdnsStarted || !MDNS.begin(host.c_str())) return;
+  MDNS.addService("http", "tcp", 80);
+  MDNS.addServiceTxt("http", "tcp", "device", "espgotchi");
+  MDNS.addService("espgotchi", "tcp", 80);  // other boards find us through this one
+  mdnsStarted = true;
+}
+
+void Net::closeAp() {
+  if (!apMode) return;
+  if (dnsRunning) { dnsServer.stop(); dnsRunning = false; }
+  WiFi.softAPdisconnect(true);
+  WiFi.mode(WIFI_STA);
+  apMode = false;
+  staFailed = false;
+  Serial.println("[net] setup AP closed");
+  if (pet) pet->logEvent("Setup network closed");
+}
+
+void Net::openAp() {
+  if (apMode) { apHeld = true; return; }
+  connected = false;
+  WiFi.disconnect();
+  startAp();
+  apHeld = true;
+}
+
+bool Net::setClock(uint32_t e) {
+  if (connected) return false;  // on the home network NTP owns the clock; on the setup network the phone does
+  if (e < 1700000000u || e > 4000000000u) return false;  // before this firmware existed, or after 2096
+  struct timeval tv = {(time_t)e, 0};
+  settimeofday(&tv, nullptr);
+  Serial.printf("[net] clock set from the network: %u\n", (unsigned)e);
+  return true;
 }
 
 // ---------- visits ----------
@@ -376,7 +409,7 @@ static bool inSetupMode() { NetInfo n = self->info(); return n.apMode && !n.conn
 
 // Redirect to the setup page so the OS shows its "sign in to network" sheet
 static void captiveRedirect() {
-  server.sendHeader("Location", String("http://") + WiFi.softAPIP().toString() + "/setup", true);
+  server.sendHeader("Location", String("http://") + WiFi.softAPIP().toString() + "/", true);
   server.send(302, "text/plain", "");
 }
 
@@ -390,11 +423,10 @@ void Net::setupRoutes() {
       else server.send(204);
     });
   }
+  // The whole panel is served on the setup network too: the pet works without internet, the
+  // panel shows the WiFi picker on top. /setup keeps the 2 KB page for captive sheets that
+  // choke on the real one.
   server.on("/", HTTP_GET, []() {
-    if (self->apMode && !self->connected) {
-      server.send(200, "text/html", buildSetupPage(self->savedSsid(), staFailed));
-      return;
-    }
     server.sendHeader("Content-Encoding", "gzip");
     server.sendHeader("Cache-Control", "no-cache");
     server.send_P(200, "text/html", (const char *)WEB_INDEX_GZ, WEB_INDEX_GZ_LEN);
@@ -406,6 +438,43 @@ void Net::setupRoutes() {
   });
   server.on("/setup", HTTP_GET, []() { server.send(200, "text/html", buildSetupPage(self->savedSsid(), staFailed)); });
 
+  // Nearby networks for the panel's WiFi picker. Scans are async: the first call usually
+  // answers "scanning" and the list arrives on the next one. ?rescan=1 forces a fresh scan.
+  server.on("/api/networks", HTTP_GET, []() {
+    JsonDocument doc;
+    doc["ok"] = true;
+    int n = WiFi.scanComplete();
+    if (n == WIFI_SCAN_FAILED || server.hasArg("rescan")) { WiFi.scanDelete(); WiFi.scanNetworks(true); n = WIFI_SCAN_RUNNING; }
+    doc["scanning"] = n == WIFI_SCAN_RUNNING;
+    JsonArray arr = doc["networks"].to<JsonArray>();
+    for (int i = 0, kept = 0; n > 0 && i < n && kept < 20; i++) {
+      if (!WiFi.SSID(i).length()) continue;
+      bool dup = false;  // one entry per SSID: results come strongest first, so keep the best AP
+      for (JsonObject seen : arr) if (seen["ssid"] == WiFi.SSID(i)) { dup = true; break; }
+      if (dup) continue;
+      kept++;
+      JsonObject o = arr.add<JsonObject>();
+      o["ssid"] = WiFi.SSID(i);
+      o["rssi"] = WiFi.RSSI(i);
+      o["secure"] = WiFi.encryptionType(i) != WIFI_AUTH_OPEN;
+    }
+    doc["saved"] = self->savedSsid();
+    doc["failed"] = staFailed;
+    sendJson(doc);
+  });
+
+  // The panel sends the phone's clock while the board has no internet, so night mode and the
+  // catch-up after a power cut work on the setup network too. Ignored once NTP has synced.
+  server.on("/api/time", HTTP_POST, []() {
+    JsonDocument body;
+    if (!readBody(body) || !body["epoch"].is<uint32_t>()) return sendError("epoch required");
+    JsonDocument doc;
+    doc["ok"] = true;
+    doc["applied"] = self->setClock(body["epoch"].as<uint32_t>());
+    doc["epoch"] = self->epoch();
+    sendJson(doc);
+  });
+
   server.on("/api/state", HTTP_GET, []() {
     JsonDocument doc;
     doc["ok"] = true;
@@ -416,6 +485,7 @@ void Net::setupRoutes() {
     d["ssid"] = n.ssid;
     d["rssi"] = n.rssi;
     d["apMode"] = n.apMode;
+    d["setup"] = n.apMode && !n.connected;  // on its own network, no internet
     d["epoch"] = self->epoch();
     d["uptimeSec"] = millis() / 1000;
     if (self->pet->hasVisitor()) {
@@ -495,6 +565,8 @@ void Net::setupRoutes() {
     doc["ssid"] = n.ssid;
     doc["rssi"] = n.rssi;
     doc["apMode"] = n.apMode;
+    doc["setup"] = n.apMode && !n.connected;
+    doc["apSsid"] = n.apMode ? WiFi.softAPSSID() : "";
     doc["timeValid"] = n.timeValid;
     sendJson(doc);
   });

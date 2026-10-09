@@ -57,6 +57,12 @@
   ul#log li time{color:var(--muted);flex:0 0 48px;font-variant-numeric:tabular-nums}
   details summary{cursor:pointer;color:var(--muted);font-size:13px;font-weight:600}
   .kv{display:grid;grid-template-columns:auto 1fr;gap:5px 14px;font-size:13px;margin-top:10px}
+  #setup{border-color:color-mix(in srgb,var(--warn) 55%,transparent)}
+  #setup h2{color:var(--warn)}
+  #setup p{margin:0 0 12px;font-size:14px;color:var(--muted)}
+  #setup p b{color:var(--fg)}
+  .wifi-head{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:13px;color:var(--muted)}
+  .wifi-head a{color:var(--accent);cursor:pointer;text-decoration:none}
   .kv b{color:var(--muted);font-weight:500}
   #toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--accent);color:var(--accent-ink);padding:10px 18px;border-radius:999px;opacity:0;transition:.25s;pointer-events:none;font-size:14px;font-weight:600;box-shadow:0 10px 30px rgba(0,0,0,.3)}
   #toast.show{opacity:1;transform:translateX(-50%)}
@@ -80,6 +86,15 @@
     </div>
     <div class="badges"><span class="badge mood" id="mood">…</span><span class="badge" id="conn">offline</span></div>
   </header>
+
+  <!-- Shown while the board is on its own network (no saved WiFi, or the saved one failed).
+       The WiFi form below moves in here; everything else keeps working as usual. -->
+  <section class="card" id="setup" hidden>
+    <h2>📶 On its own network</h2>
+    <p>You are connected straight to the pet (<b id="setup-ssid">ESPgotchi</b>). Everything here works, but there is no internet:
+      the clock comes from this phone, and nobody else can reach it. Pick your home WiFi to fix both, or keep playing.</p>
+    <p id="setup-failed" hidden>⚠️ Could not join <b id="setup-saved"></b>. Check the password or choose another network.</p>
+  </section>
 
   <section class="card hero">
     <canvas id="screen" width="320" height="172"></canvas>
@@ -128,8 +143,18 @@
     <form class="row" id="f-host" style="margin-top:12px" autocomplete="off"><input type="text" id="i-host" maxlength="24" pattern="[a-z0-9-]+" placeholder="Hostname, e.g. espgotchi (→ espgotchi.local)"><button>Set hostname</button></form>
     <details style="margin-top:14px">
       <summary>Device & WiFi</summary>
+      <div id="wifi-home">
       <div class="kv" id="devinfo"></div>
-      <form class="row" id="f-wifi" style="margin-top:12px"><input type="text" id="i-ssid" name="network" placeholder="WiFi SSID" required autocomplete="off"><input type="password" id="i-pass" placeholder="Password" autocomplete="new-password"><button class="danger">Save & reboot</button></form>
+      <form id="f-wifi" style="margin-top:12px" autocomplete="off">
+        <div class="wifi-head"><span>Home WiFi</span><a id="wifi-rescan">Rescan</a></div>
+        <div class="row" style="margin-top:8px">
+          <select id="s-net"><option value="">Scanning…</option></select>
+          <input type="text" id="i-ssid" placeholder="Network name (SSID)" hidden>
+          <input type="password" id="i-pass" placeholder="Password" autocomplete="new-password">
+          <button class="danger">Save & reboot</button>
+        </div>
+      </form>
+      </div>
     </details>
   </section>
 </main>
@@ -364,13 +389,54 @@ async function refresh() {
   try {
     const [s, e] = await Promise.all([api('/api/state'), api('/api/events')]);
     state = s; render(s.pet); renderLog(e.events);
-    if (!connected) { connected = true; $('conn').textContent = `online · ${s.device.ip}`; $('conn').className = 'badge on'; loadInfo(); }
+    if (!connected) { connected = true; $('conn').textContent = `${s.device.setup ? 'setup network' : 'online'} · ${s.device.ip}`; $('conn').className = 'badge on'; loadInfo(); }
+    setSetupMode(!!s.device.setup);
+    if (!s.device.epoch) sendClock();
   } catch { connected = false; $('conn').textContent = 'device unreachable'; $('conn').className = 'badge off'; }
 }
+// On the setup network the WiFi form moves to the top card; off it, back under "Device & WiFi".
+let setupMode = null;
+function setSetupMode(on) {
+  if (on === setupMode) return;
+  setupMode = on;
+  $('setup').hidden = !on;
+  (on ? $('setup') : $('wifi-home')).appendChild($('f-wifi'));
+  if (on) loadNetworks();
+}
+// The board has no internet on its own network: give it this phone's clock so night mode and
+// the catch-up after a power cut still work. The board ignores it while it is on the home network.
+let clockSentAt = 0;
+async function sendClock() {
+  if (Date.now() - clockSentAt < 60000) return;
+  clockSentAt = Date.now();
+  try { const r = await api('/api/time', { epoch: Math.floor(Date.now() / 1000) }); if (r.applied) toast('Clock set from this phone'); } catch {}
+}
+let netTimer = null;
+async function loadNetworks(rescan) {
+  clearTimeout(netTimer);
+  try {
+    const r = await api('/api/networks' + (rescan ? '?rescan=1' : ''));
+    const sel = $('s-net');
+    sel.replaceChildren();
+    const add = (value, text) => { const o = document.createElement('option'); o.value = value; o.textContent = text; sel.appendChild(o); };
+    if (r.scanning && !r.networks.length) { add('', 'Scanning…'); netTimer = setTimeout(loadNetworks, 1500); }
+    for (const n of r.networks) add(n.ssid, `${n.ssid} (${n.rssi} dBm${n.secure ? '' : ', open'})`);
+    add('*', 'Other network…');
+    if (r.saved && [...sel.options].some(o => o.value === r.saved)) sel.value = r.saved;
+    $('setup-saved').textContent = r.saved || '';
+    $('setup-failed').hidden = !(r.failed && r.saved);
+    onNetPick();
+  } catch {}
+}
+function onNetPick() { $('i-ssid').hidden = $('s-net').value !== '*'; }
+$('s-net').addEventListener('change', onNetPick);
+$('wifi-rescan').addEventListener('click', () => loadNetworks(true));
+document.querySelector('details').addEventListener('toggle', (ev) => { if (ev.target.open && !setupMode) loadNetworks(); });
 async function loadInfo() {
   try {
     const i = await api('/api/info');
-    $('devinfo').innerHTML = Object.entries({ Board: i.board, Firmware: i.fw, IP: i.ip, WiFi: `${i.ssid} (${i.rssi} dBm)`, mDNS: i.mdns, 'Local time': `${i.localTime}${i.night ? ' · night mode (dimmed)' : ''}`, 'Free heap': `${Math.round(i.freeHeap / 1024)} KB` })
+    $('setup-ssid').textContent = i.apSsid || i.ssid || 'ESPgotchi';
+    $('devinfo').innerHTML = Object.entries({ Board: i.board, Firmware: i.fw, IP: i.ip, WiFi: i.setup ? `${i.ssid} (own network, no internet)` : `${i.ssid} (${i.rssi} dBm)`, mDNS: i.mdns, 'Local time': `${i.localTime}${i.night ? ' · night mode (dimmed)' : ''}`, 'Free heap': `${Math.round(i.freeHeap / 1024)} KB` })
       .map(([k, v]) => `<b>${k}</b><span>${v}</span>`).join('');
     $('i-bl').value = i.brightness; $('v-bl').textContent = i.brightness;
     for (const b of document.querySelectorAll('#seg-orient button')) b.classList.toggle('active', b.dataset.orient === i.orientation);
@@ -453,9 +519,11 @@ $('seg-orient').addEventListener('click', async (ev) => {
 });
 $('f-wifi').addEventListener('submit', async (ev) => {
   ev.preventDefault();
-  if (!confirm('Save WiFi credentials and reboot the device?')) return;
-  try { await fetch(API + '/api/wifi', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ssid: $('i-ssid').value, pass: $('i-pass').value }) }); } catch {}
-  toast('Rebooting… reconnect to the new network');
+  const ssid = ($('s-net').value === '*' ? $('i-ssid').value : $('s-net').value).trim();
+  if (!ssid) { toast('Pick a network first'); return; }
+  if (!confirm(`Join "${ssid}" and reboot the device?`)) return;
+  try { await fetch(API + '/api/wifi', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ssid, pass: $('i-pass').value }) }); } catch {}
+  toast(setupMode ? 'Rebooting… join your home WiFi and open espgotchi.local' : 'Rebooting… reconnect to the new network');
 });
 
 fetch(API + '/sprites.json').then(r => r.json()).then(j => { sheet = j; buildPicker(); if (state) { themed = ''; render(state.pet); } });
