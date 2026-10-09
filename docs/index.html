@@ -314,6 +314,14 @@ ol.steps p{margin:.2rem 0 0;color:var(--dim);font-size:.92rem;max-width:58ch}
 /* inside */
 .flow{font:.8rem/1.6 var(--mono);color:var(--dim)}
 .flow b{color:var(--fg);font-weight:600}
+.chat{display:grid;gap:.7rem;padding:1.1rem;border:1px solid var(--line);border-radius:16px;background:var(--bg-2);min-width:0}
+.chat .msg{max-width:92%;padding:.65rem .85rem;border-radius:14px;font-size:.9rem;line-height:1.45}
+.chat .you{justify-self:end;background:var(--accent);color:var(--accent-ink);border-bottom-right-radius:4px}
+.chat .ai{justify-self:start;background:var(--panel);border:1px solid var(--line);border-bottom-left-radius:4px}
+.chat .tool{justify-self:start;font:.74rem/1.5 var(--mono);color:var(--mute);padding:.2rem .6rem;border-left:2px solid var(--line)}
+.chat .tool b{color:var(--ok);font-weight:600}
+.mcp-tools{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.8rem}
+.mcp-tools code{font-size:.78rem}
 table{width:100%;border-collapse:collapse;font-size:.88rem}
 th,td{text-align:left;padding:.6rem .6rem;border-bottom:1px solid var(--line);vertical-align:top}
 th{font:600 .72rem var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--mute)}
@@ -352,6 +360,7 @@ footer p{margin:0;max-width:70ch}
   <a class="mark" href="#" aria-label="ESPgotchi"><canvas id="mark" width="16" height="16"></canvas>ESPgotchi</a>
   <nav>
     <a href="#web" lang="es">Panel web</a><a href="#web" lang="en">Web panel</a>
+    <a href="#mcp" lang="es">Con IA</a><a href="#mcp" lang="en">With AI</a>
     <a href="#species" lang="es">Especies</a><a href="#species" lang="en">Species</a>
     <a href="#care" lang="es">Cuidados</a><a href="#care" lang="en">Care</a>
     <a href="#hardware">Hardware</a>
@@ -389,7 +398,7 @@ footer p{margin:0;max-width:70ch}
     <p class="nope" lang="en">This browser has no Web Serial. Open the page in desktop Chrome or Edge, or build the
       firmware yourself with <code>make flash</code>.</p>
     <div class="specs">
-      <div><b id="n-species">9</b><span lang="es">especies</span><span lang="en">species</span></div>
+      <div><b id="n-species">10</b><span lang="es">especies</span><span lang="en">species</span></div>
       <div><b>6</b><span lang="es">etapas</span><span lang="en">stages</span></div>
       <div><b id="n-sprites">157</b>sprites</div>
       <div><b>1</b><span lang="es">botón</span><span lang="en">button</span></div>
@@ -518,6 +527,62 @@ footer p{margin:0;max-width:70ch}
         <p class="fine" lang="en">It is a single vanilla JavaScript page with no dependencies: about 26 KB, shipped gzipped
           to 9 KB from the chip's flash with <code>Content-Encoding: gzip</code>. It reads its sprites from
           <code>/sprites.json</code>, the same file this page uses.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="mcp">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="eyebrow" lang="es">Cuídalo con una IA</p><p class="eyebrow" lang="en">Let an AI look after it</p>
+      <h2 lang="es">Pídele a Claude que lo cuide por ti.</h2>
+      <h2 lang="en">Ask Claude to look after it for you.</h2>
+      <p lang="es">El repo incluye un servidor <b>MCP</b> que convierte la API de la placa en herramientas para
+        cualquier asistente compatible: Claude Code, Claude Desktop o el cliente que uses. La IA lee el estado,
+        recibe consejos de qué le hace falta y actúa: le da de comer, juega, limpia, medica o apaga la luz.
+        Y sabe cuándo no hacer nada.</p>
+      <p lang="en">The repo ships an <b>MCP</b> server that turns the board's API into tools for any compatible
+        assistant: Claude Code, Claude Desktop or whichever client you use. The AI reads the state, gets advice
+        on what the pet needs and acts on it: feeds, plays, cleans, medicates or turns the lights off. And it
+        knows when to leave it alone.</p>
+    </div>
+    <div class="two">
+      <div class="chat" aria-label="Example conversation with an assistant caring for the pet">
+        <div class="msg you"><span lang="es">¿Cómo está Pixel? Cuídalo un rato.</span><span lang="en">How is Pixel doing? Look after it for a bit.</span></div>
+        <div class="tool"><b>get_state</b> → hunger 38 · fun 71 · energy 64 · clean 52 · poops 1 · advice: feed, clean</div>
+        <div class="tool"><b>feed</b> → applied · <b>clean</b> → queued (#1)</div>
+        <div class="msg ai"><span lang="es">Pixel tenía hambre y había una caca en la habitación: ya comió una hamburguesa y
+          la limpieza entró en cola mientras termina de masticar. Energía al 64 %, así que no lo despierto ni le doy
+          snacks hoy. Vuelvo a mirar en una hora.</span><span lang="en">Pixel was hungry and there was a poop in the room: it
+          just ate a burger and the clean-up is queued while it finishes chewing. Energy is at 64 %, so no snacks and no
+          waking it up today. I will check again in an hour.</span></div>
+        <div class="msg you"><span lang="es">¿Y de ánimo?</span><span lang="en">And its mood?</span></div>
+        <div class="tool"><b>get_events</b> → "Pixel played with the ball" · "Calabacin dropped by"</div>
+        <div class="msg ai"><span lang="es">Contento: jugó hace veinte minutos y hoy recibió la visita de Calabacin, el pet de la
+          otra placa. No necesita nada más.</span><span lang="en">Happy: it played twenty minutes ago and Calabacin, the pet on
+          the other board, dropped by today. Nothing else needed.</span></div>
+      </div>
+      <div style="display:grid;gap:1rem;min-width:0;align-content:start">
+        <div class="card">
+          <h3><span lang="es">Un comando y listo</span><span lang="en">One command and done</span></h3>
+          <p lang="es">Clona el repo, apunta el servidor a tu placa y añádelo al cliente. No hay que publicar nada ni
+            crear cuentas: habla con la placa dentro de tu WiFi.</p>
+          <p lang="en">Clone the repo, point the server at your board and add it to the client. Nothing to publish, no
+            accounts: it talks to the board inside your WiFi.</p>
+          <pre style="margin-top:.8rem"><code>claude mcp add espgotchi -e ESPGOTCHI_HOST=espgotchi.local \
+  -- node /path/to/espgotchi/mcp/server.mjs</code></pre>
+        </div>
+        <div class="card">
+          <h3><span lang="es">Las herramientas</span><span lang="en">The tools</span></h3>
+          <p lang="es"><code>get_state</code> devuelve las barras y una lista de consejos para que la IA sepa qué toca.
+            Las acciones responden si se aplicaron, si se encolaron o por qué se rechazaron, igual que el botón de la
+            placa. Un prompt <em>caretaker</em> le enseña a no pasarse con los snacks ni despertarlo.</p>
+          <p lang="en"><code>get_state</code> returns the bars plus a list of advice so the AI knows what is due. Actions
+            report whether they were applied, queued or refused, same as the board's button. A <em>caretaker</em>
+            prompt teaches it not to overdo the snacks or wake the pet up.</p>
+          <div class="mcp-tools"><code>get_state</code><code>get_events</code><code>get_info</code><code>screen_text</code><code>feed</code><code>snack</code><code>play</code><code>pet</code><code>clean</code><code>medicine</code><code>hatch</code><code>toggle_lights</code><code>new_egg</code><code>rename</code><code>set_settings</code></div>
+        </div>
       </div>
     </div>
   </div>
@@ -781,19 +846,6 @@ make monitor  <span lang="es" class="inl"># consola serie, escribe 'help'</span>
         │                               (web/index.html + sprites.json, gzip, PROGMEM)
         └── served as-is ───────────▶ <b>/sprites.json</b> on the board, and here</pre>
       <div style="display:grid;gap:1rem;min-width:0">
-      <div class="card">
-        <h3><span lang="es">Cuídalo con una IA</span><span lang="en">Let an AI look after it</span></h3>
-        <p lang="es">El repo incluye un servidor <b>MCP</b> (<code>mcp/</code>) que envuelve la API: un asistente como
-          Claude puede preguntar <code>get_state</code>, recibir consejos de qué le hace falta y llamar a
-          <code>feed</code>, <code>play</code>, <code>clean</code> o <code>medicine</code>. Un prompt
-          <em>caretaker</em> le enseña a no pasarse con los snacks ni despertarlo.</p>
-        <p lang="en">The repo ships an <b>MCP</b> server (<code>mcp/</code>) wrapping the API: an assistant like
-          Claude can ask <code>get_state</code>, get advice on what the pet needs and call <code>feed</code>,
-          <code>play</code>, <code>clean</code> or <code>medicine</code>. A <em>caretaker</em> prompt teaches it
-          not to overdo the snacks or wake the pet up.</p>
-        <pre style="margin-top:.8rem"><code>claude mcp add espgotchi -e ESPGOTCHI_HOST=espgotchi.local \
-  -- node /path/to/espgotchi/mcp/server.mjs</code></pre>
-      </div>
       <div class="scroll">
         <table>
           <tr><th lang="es">Ruta</th><th lang="en">Route</th><th lang="es">Qué hace</th><th lang="en">What it does</th></tr>
@@ -848,8 +900,9 @@ make monitor  <span lang="es" class="inl"># consola serie, escribe 'help'</span>
 /* ---------- language ---------- */
 (function () {
   const btn = document.getElementById('lang');
-  let lang = 'en';  // English first; the toggle remembers the visitor's choice
-  try { lang = localStorage.getItem('espgotchi-lang') || 'en'; } catch (e) {}
+  // Saved choice first, then the browser's language (Spanish speakers get Spanish), English otherwise.
+  let lang = /^es\b/i.test(navigator.language || '') ? 'es' : 'en';
+  try { lang = localStorage.getItem('espgotchi-lang') || lang; } catch (e) {}
   const apply = l => { document.documentElement.lang = l; btn.textContent = l === 'es' ? 'English' : 'Español'; };
   apply(lang); btn.hidden = false;
   btn.onclick = () => { lang = lang === 'es' ? 'en' : 'es'; apply(lang); try { localStorage.setItem('espgotchi-lang', lang); } catch (e) {} };

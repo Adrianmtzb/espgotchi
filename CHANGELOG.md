@@ -29,6 +29,10 @@ Este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
   que devuelve `queued` y `position`, y responde `429 busy` con la cola llena. `/api/state` expone
   `busy`, `busyMs` y `queued`; la web y el MCP lo muestran. En la placa, una acción encolada suena
   con el tick y parpadea en ámbar.
+- Landing: sección propia "Cuídalo con una IA" con una conversación de ejemplo, el comando de
+  instalación y la lista de herramientas del MCP, enlazada desde la navegación. El idioma inicial
+  sale del navegador (español si `navigator.language` empieza por `es`, inglés si no); el
+  selector sigue mandando una vez usado.
 - Iconos del menú redibujados: la medicina es una cápsula en diagonal con el corte de color
   perpendicular a su eje, y limpiar es una barra de jabón rosa con letras en relieve y burbujas.
 - Indicador de cola en pantalla: mientras hay acciones esperando, junto a la píldora de etapa
