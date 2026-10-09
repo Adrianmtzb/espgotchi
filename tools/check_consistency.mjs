@@ -66,7 +66,10 @@ function checkMenu() {
   const uiH = read('uiH');
   const m = uiH.match(/enum\s+MenuItem[^{]*\{([^}]*)\}/);
   if (!m) throw new Error(`enum MenuItem not found in ${FILES.uiH}`);
-  const firmware = m[1].split(',').map((s) => s.trim().replace(/=.*$/, '').trim()).filter(Boolean)
+  // Entries guarded by a preprocessor block (#if HAS_TOUCH ... #endif) only exist on some boards;
+  // the landing simulates the base board, so they are dropped before comparing.
+  const body = m[1].replace(/^[ \t]*#if[^\n]*\n[\s\S]*?^[ \t]*#endif[^\n]*\n?/gm, '');
+  const firmware = body.split(',').map((s) => s.trim().replace(/=.*$/, '').trim()).filter(Boolean)
     .filter((n) => n !== 'MENU_COUNT')
     .map((n) => {
       if (!n.startsWith('MENU_')) throw new Error(`unexpected enumerator ${n} in MenuItem`);
