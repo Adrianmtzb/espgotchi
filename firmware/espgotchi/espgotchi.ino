@@ -251,7 +251,7 @@ static void handleSerialLine(String line) {
   rest.trim();
   cmd.toLowerCase();
   if (cmd == "help") {
-    Serial.println("commands: status | wifi <ssid> <pass> | forget | name <name> | tz <posix-tz> | host <name> | feed | snack | play | pet | clean | sleep | med | poop | bl [0-255] | shot | press | hold | tp | tcal | gpio <n> | corners | boot | hatch | reset [kawaii|alien|dino|edge|ghost|pumpkin|mimi|momo|pingo|unicorn] | reboot");
+    Serial.println("commands: status | wifi <ssid> <pass> | forget | name <name> | tz <posix-tz> | host <name> | feed | snack | play | pet | clean | sleep | med | poop | bat | bl [0-255] | shot | press | hold | tp | tcal | gpio <n> | corners | boot | hatch | reset [kawaii|alien|dino|edge|ghost|pumpkin|mimi|momo|pingo|unicorn] | reboot");
   } else if (cmd == "status") {
     JsonDocument doc;
     pet.toJson(doc.to<JsonObject>());
@@ -260,8 +260,11 @@ static void handleSerialLine(String line) {
     NetInfo n = net.info();
     Serial.printf("wifi: %s ssid=%s ip=%s rssi=%d ap=%d saved=\"%s\" time=%d tz=%s\n", n.connected ? "connected" : "down", n.ssid, n.ip, n.rssi, n.apMode, net.savedSsid().c_str(), n.timeValid, net.tz().c_str());
     Serial.printf("board: %s  host=%s.local  screen=%dx%d  touch=%d", BOARD_NAME, net.hostname().c_str(), ui.width(), ui.height(), touch.present());
-    if (hwHasBattery()) Serial.printf("  battery=%dmV (%d%%)", hwBatteryMv(), hwBatteryPct());
+    if (hwHasBattery()) Serial.printf("  battery=%dmV (%d%%)%s%s", hwBatteryMv(), hwBatteryPct(), hwBatteryLow() ? " low" : "", hwBatteryCharging() ? " charging" : "");
     Serial.println();
+  } else if (cmd == "bat") {
+    if (hwHasBattery()) Serial.printf("battery: %d mV  %d%%  low=%d  charging=%d\n", hwBatteryMv(), hwBatteryPct(), hwBatteryLow(), hwBatteryCharging());
+    else Serial.println("no battery gauge on this board");
   } else if (cmd == "forget") {
     net.forgetCredentials();
     Serial.println("wifi credentials erased, rebooting into setup mode...");
@@ -415,6 +418,7 @@ void loop() {
     nextSnoreMs = now + SNORE_PERIOD_MS;  // first snore comes a full period after dozing off
   }
   if (helloPending && !hwTunePlaying()) { helloPending = false; hwTune(TUNE_HELLO); }
+  if (hwBatteryLowAlarmDue()) hwTune(TUNE_LOWBAT);  // once when the flag turns on, then every 10 min while low
   openMenuIfClickExpired();
   // Signed compare: menuShownMs may be set later in this same iteration (button/CLI run after
   // `now` was sampled), and an unsigned subtraction would wrap and close the menu instantly.
@@ -426,6 +430,7 @@ void loop() {
     bool night = isNight() || pet.state().lightsOff;
     bool dim = night && (pet.state().lightsOff || net.nightDim);
     uint8_t bl = pet.state().lightsOff ? BACKLIGHT_NIGHT : (dim ? min<int>(net.brightness, BACKLIGHT_NIGHT * 2) : net.brightness);
+    if (hwBatteryLow()) bl = min<int>(bl, net.brightness * BATTERY_LOW_BACKLIGHT_PCT / 100);  // same shape as night dimming; lifts itself once the pack recovers
     if (millis() < blOverrideUntil) bl = blOverride;
     ui.setBacklight(bl);
     if (millis() < cornerTestUntil) ui.cornerTest();

@@ -39,3 +39,13 @@
 #define BACKLIGHT_DAY 220
 #define BACKLIGHT_NIGHT 40
 #define LED_MAX_BRIGHTNESS 40  // 0-255, keep it gentle
+
+// Battery monitor (boards with HAS_BATTERY). Percent thresholds carry hysteresis so the icon
+// does not flap around the limit; the alarm repeats while the pack stays low.
+#define BATTERY_LOW_PCT 15
+#define BATTERY_LOW_CLEAR_PCT 20
+#define BATTERY_LOW_REMIND_MS (10UL * 60 * 1000)
+#define BATTERY_LOW_BACKLIGHT_PCT 60      // cap the backlight to this % of the configured brightness
+#define BATTERY_CHARGE_RISE_MV 40         // voltage climb over the trend window that reads as "charging"
+#define BATTERY_TREND_WINDOW_MS 60000
+#define BATTERY_TREND_STEP_MS 5000

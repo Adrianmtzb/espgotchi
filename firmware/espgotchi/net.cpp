@@ -305,6 +305,8 @@ void Net::setupRoutes() {
     if (hwHasBattery()) {
       doc["batteryMv"] = hwBatteryMv();
       doc["batteryPct"] = hwBatteryPct();
+      doc["lowBattery"] = hwBatteryLow();  // <= 15 %, clears at >= 20 %
+      doc["charging"] = hwBatteryCharging();  // guessed from the voltage trend (no VBUS sense)
     }
     doc["fw"] = FW_VERSION;
     doc["chip"] = ESP.getChipModel();

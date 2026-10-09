@@ -29,7 +29,7 @@ Dos placas soportadas. El sketch elige el pinout por el target del compilador
 | Pantalla | ST7789 172×320, horizontal por defecto | ST7789V2 240×280, esquinas redondeadas |
 | Entrada | botón BOOT | botón BOOT + táctil CST816 (tap, swipe, pulsación larga) |
 | Feedback | LED WS2812 según el humor | zumbador (tic al aceptar, zumbido grave al rechazar, arpegio al evolucionar, plop al hacer popó, ronquidos al dormir, estornudos si enferma y un saludo al conectar al WiFi) |
-| Extras | — | batería con indicador en pantalla y API, botón PWR para apagar |
+| Extras | — | batería con indicador en pantalla y API (aviso de batería baja con histéresis, rayo al cargar, brillo limitado al 60 % con poca carga), botón PWR para apagar |
 | Ficha | [BOARD.md](BOARD.md) | [BOARD-S3-TOUCH-1.69.md](BOARD-S3-TOUCH-1.69.md) |
 
 El layout se calcula desde el tamaño del panel, así que las cuatro orientaciones funcionan en
@@ -161,7 +161,7 @@ brillo queda limitado a 80.
 | `GET /sprites.json` | Sprites compartidos con la web |
 | `GET /api/state` | Estado del pet (`stage`, `form`, `nextEvolutionSec`, stats…) y del dispositivo |
 | `GET /api/events` | Últimos 16 eventos, el más reciente primero |
-| `GET /api/info` | Placa, firmware, IP, RSSI, heap, TZ, brillo |
+| `GET /api/info` | Placa, firmware, IP, RSSI, heap, TZ, brillo; con batería, `batteryMv`, `batteryPct`, `lowBattery` y `charging` |
 | `POST /api/action` | `{"type":"feed"|"snack"|"play"|"pet"|"clean"|"sleep"|"medicine"|"hatch"|"reset"}`; con `reset`, opcional `"species":"kawaii"|"alien"|"dino"|"edge"|"ghost"|"pumpkin"|"mimi"|"momo"|"pingo"|"unicorn"` |
 | `POST /api/name` | `{"name":"Pixel"}` (máx. 15 caracteres) |
 | `POST /api/settings` | `{"tz":"...", "brightness": 5..255, "orientation":"landscape"|"landscape-flipped"|"portrait"|"portrait-flipped", "hostname":"espgotchi", "nightDim": true}` (orientación y hostname reinician la placa; `nightDim` activa o quita la atenuación nocturna) |

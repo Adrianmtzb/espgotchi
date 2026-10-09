@@ -7,6 +7,13 @@ Este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 
 ### Añadido
 
+- **Batería baja y carga en la S3.** A ≤15 % se activa `lowBattery` (se limpia a ≥20 %, con
+  histéresis para que no parpadee en el umbral): el icono de la barra superior parpadea en rojo,
+  suenan dos notas descendentes (`TUNE_LOWBAT`) al activarse y cada 10 minutos mientras siga baja,
+  y el brillo queda limitado al 60 % del configurado hasta que la carga se recupere. `charging` se
+  deduce de que la tensión suba ≥40 mV en 60 s (la placa no expone VBUS) y pinta un rayo junto al
+  icono. Los dos campos salen en `/api/info` y en el MCP (`get_info`); la consola gana `bat`
+  (mV, %, low, charging). Sin verificar aún en hardware con el pack descargado.
 - **Snack en el menú del dispositivo**, entre Feed y Play (ocho iconos; la rejilla 2×4 / 4×2
   ya tenía el hueco).
 - **Cola de acciones.** Comer, snack, jugar, acariciar, limpiar, medicina y eclosionar pasan por

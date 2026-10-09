@@ -273,14 +273,23 @@ void Ui::drawTopBar(const Pet &pet, const NetInfo &net, bool nameOnly) {
   else snprintf(buf, sizeof(buf), "%s  %luh", pet.stageName(), (unsigned long)(s.ageSec / 3600));
   int16_t right = W - 22 - topInset;
   if (hwHasBattery()) {
-    // battery outline with a fill proportional to the charge, left of the wifi dot
+    // battery outline with a fill proportional to the charge, left of the wifi dot. Low: the
+    // whole icon blinks red at the 500 ms frame rate. Charging: a small bolt to its left.
     int pct = hwBatteryPct();
+    const bool low = hwBatteryLow(), charging = hwBatteryCharging();
     const int16_t bx = right - 22, by = 8, bw = 18, bh = 10;
-    gfx->drawRoundRect(bx, by, bw, bh, 2, fg);
-    gfx->fillRect(bx + bw, by + 3, 2, 4, fg);
-    int16_t fill = (bw - 4) * pct / 100;
-    if (fill > 0) gfx->fillRect(bx + 2, by + 2, fill, bh - 4, barColor(pct));
+    const uint16_t outline = low && frame ? C_BAD : fg;
+    gfx->drawRoundRect(bx, by, bw, bh, 2, outline);
+    gfx->fillRect(bx + bw, by + 3, 2, 4, outline);
+    int16_t fill = max<int16_t>((bw - 4) * pct / 100, low ? 1 : 0);  // an empty low cell still shows a sliver
+    if (fill > 0 && !(low && !frame)) gfx->fillRect(bx + 2, by + 2, fill, bh - 4, low ? C_BAD : barColor(pct));
     right = bx - 6;
+    if (charging) {
+      const int16_t lx = bx - 9, ly = by - 1;  // 6x11 bolt: two triangles that overlap in the middle
+      gfx->fillTriangle(lx + 4, ly, lx, ly + 6, lx + 4, ly + 6, C_WARN);
+      gfx->fillTriangle(lx + 2, ly + 4, lx + 6, ly + 4, lx + 2, ly + 11, C_WARN);
+      right = lx - 5;
+    }
   }
   int16_t w = textWidth(buf) + 14;
   int16_t x = right - w;
@@ -472,7 +481,7 @@ void Ui::drawInfo(const Pet &pet, const NetInfo &net) {
   }
   y += 8;
   line(0xBDF7, "Time %s  FW %s  heap %luk", net.timeValid ? "ok" : "no", FW_VERSION, (unsigned long)(ESP.getFreeHeap() / 1024));
-  if (hwHasBattery()) line(0xBDF7, "Battery %d%%  %d.%02d V", hwBatteryPct(), hwBatteryMv() / 1000, (hwBatteryMv() % 1000) / 10);
+  if (hwHasBattery()) line(hwBatteryLow() ? C_BAD : 0xBDF7, "Battery %d%%  %d.%02d V%s%s", hwBatteryPct(), hwBatteryMv() / 1000, (hwBatteryMv() % 1000) / 10, hwBatteryLow() ? "  low" : "", hwBatteryCharging() ? "  charging" : "");
   // Credits pinned to the bottom, above the back hint, so they sit in the same place on every board.
   const int16_t fx = 10 + edgeInset(22);
   const char *follow = "Follow for more  ";
