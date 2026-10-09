@@ -12,6 +12,71 @@ static void toneNow(uint16_t hz, uint16_t ms) {
 }
 #endif
 
+#if HAS_BATTERY
+// Battery monitor. One filtered reading per second; the percentage, the low flag and the
+// charging guess all come from the same filtered value so they never disagree with each other.
+static int batMv = -1;               // filtered millivolts
+static uint32_t batNextSampleMs = 0;
+static bool batLow = false, batCharging = false, batAlarmPending = false;
+static uint32_t batAlarmMs = 0;      // when the low alarm last fired
+// 60 s trend window: one slot per BATTERY_TREND_STEP_MS, the oldest slot is 60 s behind.
+static const uint8_t BAT_TREND_N = BATTERY_TREND_WINDOW_MS / BATTERY_TREND_STEP_MS;
+static int16_t batTrend[BAT_TREND_N];
+static uint8_t batTrendHead = 0, batTrendFill = 0;
+static uint32_t batTrendNextMs = 0;
+static uint32_t batRiseSeenMs = 0;   // last time the 60 s delta cleared the charging threshold
+
+static int batteryRead() {
+  // Average a few samples: the divider sits next to the WiFi radio and the ADC is noisy.
+  uint32_t sum = 0;
+  for (uint8_t i = 0; i < 8; i++) sum += analogReadMilliVolts(PIN_BAT_ADC);
+  return (int)(sum / 8 * BATTERY_DIVIDER);
+}
+
+static int batteryPctFromMv(int mv) {
+  // Piecewise LiPo discharge curve (open-circuit voltage, rough but monotonic).
+  static const struct { uint16_t mv; uint8_t pct; } curve[] = {
+    {4200, 100}, {4100, 90}, {4000, 78}, {3900, 62}, {3800, 45}, {3700, 25}, {3600, 10}, {3500, 4}, {3300, 0}};
+  if (mv >= curve[0].mv) return 100;
+  for (size_t i = 1; i < sizeof(curve) / sizeof(curve[0]); i++) {
+    if (mv >= curve[i].mv) {
+      int span = curve[i - 1].mv - curve[i].mv;
+      return curve[i].pct + (mv - curve[i].mv) * (curve[i - 1].pct - curve[i].pct) / span;
+    }
+  }
+  return 0;
+}
+
+static void batterySample() {
+  uint32_t now = millis();
+  batNextSampleMs = now + 1000;
+  int raw = batteryRead();
+  batMv = batMv < 0 ? raw : (batMv * 3 + raw) / 4;  // light IIR on top of the 8-sample average
+
+  // Low flag with hysteresis so a noisy reading around the threshold does not flap the icon.
+  int pct = batteryPctFromMv(batMv);
+  if (!batLow && pct <= BATTERY_LOW_PCT) { batLow = true; batAlarmPending = true; batAlarmMs = now; }
+  else if (batLow && pct >= BATTERY_LOW_CLEAR_PCT) batLow = false;
+  else if (batLow && (uint32_t)(now - batAlarmMs) >= BATTERY_LOW_REMIND_MS) { batAlarmPending = true; batAlarmMs = now; }
+
+  // Charging guess: the pack voltage climbing >= BATTERY_CHARGE_RISE_MV over the last 60 s.
+  // A full pack on USB sits flat at ~4.2 V, so this only catches an actual charge in progress.
+  if ((int32_t)(now - batTrendNextMs) >= 0) {
+    batTrendNextMs = now + BATTERY_TREND_STEP_MS;
+    batTrend[batTrendHead] = (int16_t)batMv;
+    batTrendHead = (batTrendHead + 1) % BAT_TREND_N;
+    if (batTrendFill < BAT_TREND_N) batTrendFill++;
+    if (batTrendFill == BAT_TREND_N) {
+      int oldest = batTrend[batTrendHead];  // the slot about to be overwritten is the oldest
+      if (batMv - oldest >= BATTERY_CHARGE_RISE_MV) batRiseSeenMs = now;
+    }
+  }
+  // Stay "charging" for one window after the last rise, so the bolt does not flicker between steps.
+  batCharging = batRiseSeenMs && (uint32_t)(now - batRiseSeenMs) < BATTERY_TREND_WINDOW_MS;
+  if (!batCharging) batRiseSeenMs = 0;
+}
+#endif
+
 void hwBegin() {
 #if HAS_POWER_LATCH
   // Hold the battery rail on. On USB the regulator is powered anyway, so this is harmless there.
@@ -28,6 +93,8 @@ void hwBegin() {
 #if HAS_BATTERY
   analogReadResolution(12);
   pinMode(PIN_BAT_ADC, INPUT);
+  // no VBUS sense on this board: charging is inferred from the voltage trend in batterySample()
+  batterySample();
 #endif
 #if HAS_RGB_LED
   rgbLedWrite(PIN_RGB_LED, 0, 0, 0);
@@ -40,6 +107,9 @@ void hwLoop() {
     if (seq && seqPos < seqLen) toneNow(seq[seqPos++], seqStep);
     else { ledcWrite(PIN_BUZZER, 0); toneUntil = 0; seq = nullptr; }
   }
+#endif
+#if HAS_BATTERY
+  if ((int32_t)(millis() - batNextSampleMs) >= 0) batterySample();
 #endif
 }
 
@@ -81,6 +151,7 @@ TUNE(T_BOOT, 70, 523, 659, 784, 0, 1047);                     // power on: C E G
 TUNE(T_SAD, 220, 392, 349, 311, 262);                         // death
 TUNE(T_POWEROFF, 120, 784, 523, 392);                         // shutting down
 TUNE(T_POOP, 70, 196, 165, 0, 131, 110, 98);                  // a sliding, embarrassed plop
+TUNE(T_LOWBAT, 90, 988, 0, 659);                              // two short notes going down: feed me power
 #undef TUNE
 #define PLAY(name) do { seq = name; seqLen = name##_LEN; seqPos = 1; seqStep = name##_STEP; toneNow(name[0], seqStep); } while (0)
 #endif
@@ -106,6 +177,7 @@ void hwTune(Tune t) {
     case TUNE_SAD: PLAY(T_SAD); break;
     case TUNE_POWEROFF: PLAY(T_POWEROFF); break;
     case TUNE_POOP: PLAY(T_POOP); break;
+    case TUNE_LOWBAT: PLAY(T_LOWBAT); break;
   }
 #else
   (void)t;
@@ -116,10 +188,8 @@ bool hwHasBattery() { return HAS_BATTERY != 0; }
 
 int hwBatteryMv() {
 #if HAS_BATTERY
-  // Average a few samples: the divider sits next to the WiFi radio and the ADC is noisy.
-  uint32_t sum = 0;
-  for (uint8_t i = 0; i < 8; i++) sum += analogReadMilliVolts(PIN_BAT_ADC);
-  return (int)(sum / 8 * BATTERY_DIVIDER);
+  if (batMv < 0) batterySample();
+  return batMv;
 #else
   return -1;
 #endif
@@ -127,20 +197,35 @@ int hwBatteryMv() {
 
 int hwBatteryPct() {
 #if HAS_BATTERY
-  // Piecewise LiPo discharge curve (open-circuit voltage, rough but monotonic).
-  static const struct { uint16_t mv; uint8_t pct; } curve[] = {
-    {4200, 100}, {4100, 90}, {4000, 78}, {3900, 62}, {3800, 45}, {3700, 25}, {3600, 10}, {3500, 4}, {3300, 0}};
-  int mv = hwBatteryMv();
-  if (mv >= curve[0].mv) return 100;
-  for (size_t i = 1; i < sizeof(curve) / sizeof(curve[0]); i++) {
-    if (mv >= curve[i].mv) {
-      int span = curve[i - 1].mv - curve[i].mv;
-      return curve[i].pct + (mv - curve[i].mv) * (curve[i - 1].pct - curve[i].pct) / span;
-    }
-  }
-  return 0;
+  return batteryPctFromMv(hwBatteryMv());
 #else
   return -1;
+#endif
+}
+
+bool hwBatteryLow() {
+#if HAS_BATTERY
+  return batLow;
+#else
+  return false;
+#endif
+}
+
+bool hwBatteryCharging() {
+#if HAS_BATTERY
+  return batCharging;
+#else
+  return false;
+#endif
+}
+
+bool hwBatteryLowAlarmDue() {
+#if HAS_BATTERY
+  bool due = batAlarmPending;
+  batAlarmPending = false;
+  return due;
+#else
+  return false;
 #endif
 }
 

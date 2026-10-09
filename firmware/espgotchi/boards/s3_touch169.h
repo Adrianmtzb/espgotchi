@@ -42,6 +42,8 @@
 #endif
 #define PIN_BAT_ADC 1          // VBAT = 3 x VADC (two-resistor divider)
 #define BATTERY_DIVIDER 3
+// no VBUS sense on this board: the ETA6098 charger has no status line routed to the ESP32, so
+// "charging" is guessed from the battery voltage trend (see hw.cpp)
 
 // Panel: ST7789V2, 240x280 native (rounded corners), 20-row offset inside the 240x320 RAM.
 #define LCD_NATIVE_W 240

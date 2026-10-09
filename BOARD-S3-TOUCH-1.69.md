@@ -52,7 +52,7 @@ desborda por el lado contrario.
 | Periférico | GPIO | Notas |
 |---|---|---|
 | Zumbador | 42 (33 en la revisión antigua) | PWM; el firmware lo usa para confirmar acciones |
-| Batería ADC | 1 | `VBAT = 3 × VADC`; cargador ETA6098 por USB |
+| Batería ADC | 1 | `VBAT = 3 × VADC`; cargador ETA6098 por USB. Sin línea de VBUS ni de estado del cargador hacia el ESP32: `charging` se deduce de que la tensión suba ≥40 mV en 60 s. Batería baja a ≤15 % (se limpia a ≥20 %): icono parpadeando, dos notas descendentes cada 10 min y brillo limitado al 60 %. Consola: `bat` |
 | SYS_EN | 41 (35 antigua) | alto para mantener la alimentación desde batería |
 | SYS_OUT | 40 (36 antigua) | botón PWR: alto en reposo, **bajo mientras se pulsa** (medido); 2 s apagan la placa en batería |
 | Botón BOOT | 0 | strapping; usable como botón tras el arranque |

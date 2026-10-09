@@ -241,7 +241,7 @@ server.registerTool("get_events", {
 
 server.registerTool("get_info", {
   title: "Get board info",
-  description: "Read board and firmware information: version, free heap, WiFi/IP, local time, night mode, brightness and timezone.",
+  description: "Read board and firmware information: version, free heap, WiFi/IP, local time, night mode, brightness and timezone. Boards with a battery gauge also report batteryMv, batteryPct, lowBattery (at or under 15 %, clears at 20 %) and charging (a guess from the voltage trend).",
   inputSchema: {},
   annotations: readOnly,
 }, guarded(async () => json(await getInfo())));
