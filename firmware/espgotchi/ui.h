@@ -1,14 +1,8 @@
 #pragma once
 #include <Arduino.h>
-#include "config.h"
 #include "pet.h"
 
-// Game (Catch the ball) needs a finger, so the item only exists on touch boards.
-enum MenuItem : uint8_t { MENU_FEED = 0, MENU_SNACK, MENU_PLAY,
-#if HAS_TOUCH
-                          MENU_GAME,
-#endif
-                          MENU_PET, MENU_CLEAN, MENU_SLEEP, MENU_MEDS, MENU_INFO, MENU_COUNT };
+enum MenuItem : uint8_t { MENU_FEED = 0, MENU_SNACK, MENU_PLAY, MENU_PET, MENU_CLEAN, MENU_SLEEP, MENU_MEDS, MENU_INFO, MENU_COUNT };
 
 struct NetInfo {
   bool connected;
@@ -22,17 +16,6 @@ struct NetInfo {
 
 struct Sprite;
 
-#if HAS_TOUCH
-// What the sketch's game state looks like to the renderer: the ball's top-left corner in canvas
-// coordinates, the running score, the seconds left and whether the round is over (score card).
-struct GameView {
-  int16_t ballX, ballY;
-  uint8_t score, secondsLeft;
-  bool over, hop;  // hop: the pet just caught one and jumps
-};
-static const int16_t GAME_BALL_SCALE = 3, GAME_BALL_PX = 16 * GAME_BALL_SCALE;  // SPR_BALL is 16x16
-#endif
-
 class Ui {
  public:
   bool begin(uint8_t rotation);
@@ -44,12 +27,6 @@ class Ui {
   void dumpFramebuffer(Stream &out);  // 'shot' CLI command: base64 RGB565 for tools/screenshot.py
   // Menu cell under a screen point, or -1. Same geometry drawMenu() uses, so touch and pixels agree.
   int8_t menuHit(int16_t x, int16_t y) const;
-#if HAS_TOUCH
-  void renderGame(const Pet &pet, const GameView &g, bool night);
-  // Rectangle the ball's top-left corner may travel in: the room minus the ball size, the
-  // floor strip and whatever the rounded glass hides.
-  void gameArena(int16_t &x, int16_t &y, int16_t &w, int16_t &h) const;
-#endif
   int16_t width() const { return W; }
   int16_t height() const { return H; }
 
@@ -71,7 +48,6 @@ class Ui {
   void drawBar(int16_t x, int16_t y, int16_t w, int16_t h, int16_t pct);
   void drawTopBar(const Pet &pet, const NetInfo &net, bool nameOnly);
   void drawQueued(uint8_t n, int16_t left, int16_t right, bool nearLeft);
-  void drawRoomShell(bool night);  // walls, floor and the night sky, shared by the room and the game
   void drawRoom(const Pet &pet, bool night);
   void drawStats(const Pet &pet);
   void drawMenu(int8_t sel);

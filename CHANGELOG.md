@@ -14,11 +14,6 @@ Este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
   deduce de que la tensión suba ≥40 mV en 60 s (la placa no expone VBUS) y pinta un rayo junto al
   icono. Los dos campos salen en `/api/info` y en el MCP (`get_info`); la consola gana `bat`
   (mV, %, low, charging). Sin verificar aún en hardware con el pack descargado.
-- **Minijuego táctil "Catch the ball"** en la S3, icono **Game** del menú (solo existe en placas
-  con táctil; en la C6 el menú sigue teniendo ocho iconos). Ronda de 20 s: la pelota rebota por la
-  habitación, cada toque sobre ella suma un punto y la acelera, y el pet salta con cada acierto.
-  Al terminar se muestra "Score N" dos segundos y el pet gana `10 + puntos` de diversión y
-  pierde 10 de energía (`Pet::playGame`, con evento en el log). BOOT abandona la ronda.
 - **Visitas entre placas en la misma red.** Cada placa anuncia `_espgotchi._tcp` por mDNS con
   especie, nombre y etapa; cada cinco minutos (o con `visit` en la consola) busca otra placa,
   lee su `/api/state` y el amigo aparece en la habitación unos 20 s con su sprite, un corazón y

@@ -134,16 +134,6 @@ bool Pet::play() {
   return true;
 }
 
-// The touch mini-game applies its result here. It never refuses: the round already happened.
-void Pet::playGame(uint8_t score) {
-  if (s.dead || s.stage == STAGE_EGG) return;
-  s.happiness += 10 + score;
-  s.energy -= 10;
-  clampAll();
-  dirty = true;
-  logEvent("%s caught the ball %u times", s.name, score);
-}
-
 bool Pet::pet() {
   if (s.dead || s.stage == STAGE_EGG) return false;
   if (s.asleep) {

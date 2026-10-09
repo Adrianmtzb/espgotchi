@@ -302,7 +302,8 @@ void Ui::drawTopBar(const Pet &pet, const NetInfo &net, bool nameOnly) {
   if (!net.connected && frame) gfx->drawCircle(W - 11 - topInset, 14, 6, wc);
 }
 
-void Ui::drawRoomShell(bool night) {
+void Ui::drawRoom(const Pet &pet, bool night) {
+  const PetState &s = pet.state();
   const int16_t rx = roomX, ry = roomY, rw = roomW, rh = roomH, floorY = ry + rh - 22;
   // Floor color first, then the wall on top with its bottom edge squared off, so the whole
   // room keeps one outline whatever its corner radius.
@@ -313,12 +314,6 @@ void Ui::drawRoomShell(bool night) {
     static const uint8_t stars[][2] = {{20, 14}, {60, 8}, {110, 20}, {150, 10}, {185, 26}, {90, 40}, {170, 48}};
     for (auto &st : stars) gfx->drawPixel(rx + st[0], ry + st[1], (frame ^ (st[0] & 1)) ? C_WHITE : muted);
   }
-}
-
-void Ui::drawRoom(const Pet &pet, bool night) {
-  const PetState &s = pet.state();
-  const int16_t rx = roomX, ry = roomY, rw = roomW, floorY = ry + roomH - 22;
-  drawRoomShell(night);
 
   const SpeciesInfo &sp = SPECIES[s.species < SPECIES_COUNT ? s.species : 0];
   const Sprite *spr = sp.egg;
@@ -411,16 +406,8 @@ void Ui::drawStats(const Pet &pet) {
 }
 
 void Ui::drawMenu(int8_t sel) {
-  const Sprite *icons[MENU_COUNT] = {&SPR_MEAL_BURGER, &SPR_SNACK_COOKIE, &SPR_BALL,
-#if HAS_TOUCH
-                                     &SPR_ICON_PLAY,  // the ball itself is already the Play icon
-#endif
-                                     &SPR_HEART, &SPR_ICON_CLEAN, &SPR_ICON_SLEEP, &SPR_ICON_MEDS, &SPR_ICON_INFO};
-  const char *labels[MENU_COUNT] = {"Feed", "Snack", "Play",
-#if HAS_TOUCH
-                                    "Game",
-#endif
-                                    "Pet", "Clean", "Lights", "Medicine", "Info"};
+  const Sprite *icons[MENU_COUNT] = {&SPR_MEAL_BURGER, &SPR_SNACK_COOKIE, &SPR_BALL, &SPR_HEART, &SPR_ICON_CLEAN, &SPR_ICON_SLEEP, &SPR_ICON_MEDS, &SPR_ICON_INFO};
+  const char *labels[MENU_COUNT] = {"Feed", "Snack", "Play", "Pet", "Clean", "Lights", "Medicine", "Info"};
   int16_t cols, x0, y0;
   menuGrid(cols, x0, y0);
   const int16_t cell = MENU_CELL, gap = MENU_GAP;
@@ -447,10 +434,9 @@ void Ui::drawMenu(int8_t sel) {
   }
 }
 
-// Two columns over the stats panel (landscape) or two rows under the room (portrait): 2x4 / 4x2
-// with eight items, 2x5 / 5x2 with the touch boards' ninth.
+// 8 items: 2x4 grid over the stats panel (landscape) or 4x2 under the room (portrait)
 void Ui::menuGrid(int16_t &cols, int16_t &x0, int16_t &y0) const {
-  cols = portrait ? (MENU_COUNT + 1) / 2 : 2;
+  cols = portrait ? 4 : 2;
   x0 = portrait ? (W - (cols * MENU_CELL + (cols - 1) * MENU_GAP)) / 2 : panelX;
   y0 = portrait ? panelY : (LCD_CORNER_RADIUS ? 12 : 4);  // rounded glass: clear the top corner
 }
@@ -517,70 +503,6 @@ void Ui::drawInfo(const Pet &pet, const NetInfo &net) {
   text(fx + textWidth(follow), H - 22, "adrianmb.dev", SPECIES[s.species < SPECIES_COUNT ? s.species : 0].accent);
   text(lx, H - 10, HAS_TOUCH ? "tap or press BOOT to go back" : "press BOOT to go back", 0x7BEF);
 }
-
-#if HAS_TOUCH
-void Ui::gameArena(int16_t &x, int16_t &y, int16_t &w, int16_t &h) const {
-  const int16_t floorY = roomY + roomH - 22, pad = 4;
-  // The room hugs the glass, so the corner can eat its top and bottom edges: keep the ball off them.
-  const int16_t side = max<int16_t>(pad, max<int16_t>(edgeInset(roomY), edgeInset(H - floorY)) - roomX + pad);
-  x = roomX + side; w = roomW - 2 * side - GAME_BALL_PX;
-  y = roomY + pad; h = floorY + 4 - GAME_BALL_PX - y;  // the ball rests on the same line as the pet's feet
-}
-
-// Catch the ball: the room with the pet watching (hopping on a catch), the ball on top, and the
-// score and clock where the stats normally go. When the round is over a card shows the score.
-void Ui::renderGame(const Pet &pet, const GameView &g, bool night) {
-  uint32_t now = millis();
-  if (now - frameMs >= 500) { frameMs = now; frame ^= 1; }
-  pickTheme(pet, night);
-  gfx->fillScreen(bg);
-  gfx->setFont(portrait ? &FreeSans9pt7b : &FreeSansBold12pt7b);
-  text(8 + topInset, portrait ? 18 : 21, "Catch the ball", fg);
-  gfx->setFont(nullptr);
-  drawRoomShell(night);
-  const PetState &s = pet.state();
-  const SpeciesInfo &sp = SPECIES[s.species < SPECIES_COUNT ? s.species : 0];
-  const uint8_t scale = 4;
-  const int16_t floorY = roomY + roomH - 22;
-  const int16_t px = roomX + (roomW - 24 * scale) / 2, py = floorY + 4 - 24 * scale;
-  const int16_t dy = g.hop ? -16 : 0;  // same jump as the Play animation
-  gfx->fillRoundRect(px + 20, floorY - 1, 56, 6, 3, mix(bg2, fg, 60));
-  drawSprite(*sp.frames[pet.spriteSlot()][frame ? 1 : 0], px, py + dy, scale);
-  if (!g.over) drawSprite(SPR_BALL, g.ballX, g.ballY, GAME_BALL_SCALE);
-
-  // HUD on the panel: landscape stacks score over time, portrait puts them side by side.
-  char buf[8];
-  auto stat = [&](int16_t x, int16_t y, const char *label, uint8_t v) {
-    text(x, y, label, muted);
-    snprintf(buf, sizeof(buf), "%u", v);
-    gfx->setFont(&FreeSansBold12pt7b);
-    text(x, y + 28, buf, fg);
-    gfx->setFont(nullptr);
-  };
-  if (portrait) {
-    stat(panelX, panelY, "SCORE", g.score);
-    stat(panelX + panelW / 2, panelY, "TIME", g.secondsLeft);
-  } else {
-    stat(panelX, panelY, "SCORE", g.score);
-    stat(panelX, panelY + 2 * statRowH, "TIME", g.secondsLeft);
-  }
-  // Hint under the grid in portrait; landscape has no room there, so it goes on the floor strip.
-  const char *hint = g.over ? "tap or press BOOT" : "tap the ball";  // short enough for the 160 px landscape floor
-  if (portrait) text(max<int16_t>(panelX, edgeInset(10)), H - 10, hint, muted);
-  else text(roomX + 10 + edgeInset(H - floorY - 16), floorY + 8, hint, muted);
-
-  if (g.over) {  // score card over the room
-    snprintf(buf, sizeof(buf), "Score %u", g.score);
-    gfx->setFont(&FreeSansBold12pt7b);
-    const int16_t tw = textWidth(buf), cw = tw + 28, ch = 36;
-    const int16_t cx = roomX + (roomW - cw) / 2, cy = roomY + (roomH - ch) / 2;
-    gfx->fillRoundRect(cx, cy, cw, ch, 10, accent);
-    text(cx + 14, cy + 25, buf, C_INK);
-    gfx->setFont(nullptr);
-  }
-  gfx->flush();
-}
-#endif
 
 void Ui::render(const Pet &pet, const NetInfo &net, int8_t menuSel, bool infoPage, bool night) {
   uint32_t now = millis();
