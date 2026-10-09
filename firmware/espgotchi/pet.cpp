@@ -148,6 +148,20 @@ bool Pet::pet() {
   return true;
 }
 
+bool Pet::visitFrom(const char *name, uint8_t species, uint8_t slot) {
+  if (s.dead || s.stage == STAGE_EGG || s.asleep || animCur != ANIM_NONE) return false;
+  if (!name || !name[0] || species >= SPECIES_COUNT || slot >= SPRITE_SLOTS) return false;
+  strlcpy(visitor.name, name, sizeof(visitor.name));
+  visitor.species = species;
+  visitor.slot = slot;
+  s.happiness += 15;
+  clampAll();
+  startAnim(ANIM_VISIT, VISIT_DURATION_MS);
+  dirty = true;
+  logEvent("%s dropped by", visitor.name);
+  return true;
+}
+
 bool Pet::clean() {
   if (s.dead || s.stage == STAGE_EGG) return false;
   s.poops = 0;
@@ -328,7 +342,7 @@ void Pet::tick(uint32_t nowEpoch) {
       animStep++;
     }
   }
-  if (animCur == ANIM_NONE && qCount) {  // next queued action, one per tick so each gets its full animation
+  if (!busy() && qCount) {  // next queued action, one per tick so each gets its full animation
     PetAction a = (PetAction)queue[qHead];
     qHead = (qHead + 1) % PET_QUEUE_MAX;
     qCount--;
@@ -377,6 +391,8 @@ const char *Pet::moodWord() const {
   if (s.happiness > 75 && s.hunger > 60) return "happy";
   return "okay";
 }
+
+const char *Pet::visitorSpeciesKey() const { return SPECIES[visitor.species < SPECIES_COUNT ? visitor.species : 0].key; }
 
 const char *Pet::speciesKey() const { return SPECIES[s.species < SPECIES_COUNT ? s.species : 0].key; }
 
@@ -450,9 +466,15 @@ void Pet::toJson(JsonObject o) const {
   o["careMistakes"] = s.careMistakes;
   o["generation"] = s.generation;
   o["needsAttention"] = needsAttention();
-  const char *animNames[] = {"none", "eat", "snack", "play", "pet", "clean", "heal", "hatch"};
+  o["spriteSlot"] = spriteSlot();  // lets another board pick the right frame for a visit
+  const char *animNames[] = {"none", "eat", "snack", "play", "pet", "clean", "heal", "hatch", "visit"};
   o["anim"] = animNames[animCur];
   if (animCur == ANIM_EAT || animCur == ANIM_SNACK) o["animItem"] = animItemName();
+  if (animCur == ANIM_VISIT) {
+    JsonObject v = o["visitor"].to<JsonObject>();
+    v["name"] = visitor.name;
+    v["species"] = visitorSpeciesKey();
+  }
   o["busy"] = busy();
   o["busyMs"] = busyMs();
   o["queued"] = qCount;

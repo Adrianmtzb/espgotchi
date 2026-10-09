@@ -248,7 +248,7 @@ static void handleSerialLine(String line) {
   rest.trim();
   cmd.toLowerCase();
   if (cmd == "help") {
-    Serial.println("commands: status | wifi <ssid> <pass> | forget | name <name> | tz <posix-tz> | host <name> | feed | snack | play | pet | clean | sleep | med | poop | bl [0-255] | shot | press | hold | tp | tcal | gpio <n> | corners | boot | hatch | reset [kawaii|alien|dino|edge|ghost|pumpkin|mimi|momo|pingo] | reboot");
+    Serial.println("commands: status | wifi <ssid> <pass> | forget | name <name> | tz <posix-tz> | host <name> | feed | snack | play | pet | clean | sleep | med | poop | visit [host] | bl [0-255] | shot | press | hold | tp | tcal | gpio <n> | corners | boot | hatch | reset [kawaii|alien|dino|edge|ghost|pumpkin|mimi|momo|pingo] | reboot");
   } else if (cmd == "status") {
     JsonDocument doc;
     pet.toJson(doc.to<JsonObject>());
@@ -285,6 +285,11 @@ static void handleSerialLine(String line) {
   }
   else if (cmd == "sleep") pet.toggleLights();
   else if (cmd == "poop") Serial.println(pet.mess() ? "plop" : "nothing to drop");
+  else if (cmd == "visit") {
+    // 'visit' looks for another board on the LAN (result arrives in the log); 'visit <host>' goes straight there
+    if (!rest.length()) { net.visitNow(); Serial.println("looking for friends..."); }
+    else { String err; Serial.println(net.visitHost(rest.c_str(), err) ? "friend is here" : "no visit: " + err); }
+  }
   else if (cmd == "reset") { pet.reset(Pet::speciesFromKey(rest.length() ? rest.c_str() : nullptr)); pet.save(net.epoch(), true); }
   else if (cmd == "shot") ui.dumpFramebuffer(Serial);
   else if (cmd == "press") onShortPress();   // simulate BOOT gestures from the CLI
@@ -368,6 +373,7 @@ void loop() {
       case ANIM_PET: hwTune(TUNE_PET); break;
       case ANIM_CLEAN: hwTune(TUNE_CLEAN); break;
       case ANIM_HEAL: hwTune(TUNE_MEDS); break;
+      case ANIM_VISIT: hwTune(TUNE_PET); break;
       default: break;
     }
     lastSeenAnim = a;

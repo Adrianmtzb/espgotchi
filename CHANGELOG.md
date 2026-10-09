@@ -7,6 +7,13 @@ Este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 
 ### Añadido
 
+- **Visitas entre placas en la misma red.** Cada placa anuncia `_espgotchi._tcp` por mDNS con
+  especie, nombre y etapa; cada cinco minutos (o con `visit` en la consola) busca otra placa,
+  lee su `/api/state` y el amigo aparece en la habitación unos 20 s con su sprite, un corazón y
+  su nombre, y el pet gana +15 de diversión (`anim: "visit"`, evento "Nova dropped by"). La
+  búsqueda es asíncrona y la lectura tiene un tiempo de espera corto, así que el loop no se
+  detiene. `/api/state` expone `visitor` y `spriteSlot`; `POST /api/visit {host}` fuerza una
+  visita para probar. Una placa sola no encuentra a nadie y no muestra nada.
 - **Snack en el menú del dispositivo**, entre Feed y Play (ocho iconos; la rejilla 2×4 / 4×2
   ya tenía el hueco).
 - **Cola de acciones.** Comer, snack, jugar, acariciar, limpiar, medicina y eclosionar pasan por

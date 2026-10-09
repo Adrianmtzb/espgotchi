@@ -308,6 +308,20 @@ void Ui::drawRoom(const Pet &pet, bool night) {
   if (!s.asleep && anim == ANIM_NONE) dx = frame ? 2 : -2;
   if (anim == ANIM_PLAY) dy = (pet.animFrame() % 2) ? -16 : 0;
   if (anim == ANIM_HATCH) dy = frame ? -6 : 0;
+  if (anim == ANIM_VISIT && pet.visitorSpecies() < SPECIES_COUNT && pet.visitorSlot() < SPRITE_SLOTS) {
+    // A friend from another board stands on the left; the pair is centered as a block so it fits
+    // the 160 px room of the S3 in landscape (friend at scale 2) and grows on wider rooms.
+    const uint8_t fscale = rw >= 180 ? 3 : 2;
+    const int16_t fw = 24 * fscale, gap = 4;
+    px = rx + (rw - (fw + gap + 24 * scale)) / 2 + fw + gap;
+    const int16_t fx = px - gap - fw, fy = floorY + 4 - fw, fdx = frame ? -2 : 2;
+    const SpeciesInfo &fsp = SPECIES[pet.visitorSpecies()];
+    const Sprite *fspr = fsp.frames[pet.visitorSlot()][frame ? 0 : 1];
+    gfx->fillRoundRect(fx + fscale * 5, floorY - 1, fw - fscale * 10, 6, 3, mix(bg2, fg, 60));
+    drawSprite(*fspr, fx + fdx, fy, fscale);
+    text(max<int16_t>(fx, rx + 6), fy - 10, pet.visitorName(), fg);
+    drawSprite(SPR_HEART, px - 14, py - 10 + (frame ? 0 : 4), 2);
+  }
   // soft shadow
   gfx->fillRoundRect(px + 20, floorY - 1, 56, 6, 3, mix(bg2, fg, 60));
   drawSprite(*spr, px + dx, py + dy, scale);

@@ -23,6 +23,11 @@ class Net {
   bool nightDim = true;  // cap the backlight between 22:00 and 07:00
   bool restartRequested = false;
   void loadSettings();  // call before Ui::begin
+  // Visits: look for another ESPgotchi on the LAN now (async, the outcome is logged), or fetch a
+  // given host (IP, "name.local" or a bare mDNS name) right away. visitHost blocks the loop for a
+  // few hundred ms at most; on failure `err` says why.
+  void visitNow();
+  bool visitHost(const char *host, String &err);
 
  private:
   Pet *pet = nullptr;
@@ -33,7 +38,13 @@ class Net {
   String host;
   uint32_t connectStartMs = 0;
   uint32_t lastReconnectMs = 0;
+  uint32_t nextVisitMs = 0, lastAdvertMs = 0;
+  String lastAdvert;
+  void *visitSearch = nullptr;  // mdns_search_once_t* while a discovery is in flight
   String staSsid, staPass, tzStr;
+  void advertise();
+  void visitLoop();
+  bool visitAddr(IPAddress ip, uint16_t port, String &err);
   void startAp();
   void startSta();
   void onConnected();
