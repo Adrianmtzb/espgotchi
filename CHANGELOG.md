@@ -14,6 +14,11 @@ Este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
   deduce de que la tensión suba ≥40 mV en 60 s (la placa no expone VBUS) y pinta un rayo junto al
   icono. Los dos campos salen en `/api/info` y en el MCP (`get_info`); la consola gana `bat`
   (mV, %, low, charging). Sin verificar aún en hardware con el pack descargado.
+- **Minijuego táctil "Catch the ball"** en la S3, icono **Game** del menú (solo existe en placas
+  con táctil; en la C6 el menú sigue teniendo ocho iconos). Ronda de 20 s: la pelota rebota por la
+  habitación, cada toque sobre ella suma un punto y la acelera, y el pet salta con cada acierto.
+  Al terminar se muestra "Score N" dos segundos y el pet gana `10 + puntos` de diversión y
+  pierde 10 de energía (`Pet::playGame`, con evento en el log). BOOT abandona la ronda.
 - **Snack en el menú del dispositivo**, entre Feed y Play (ocho iconos; la rejilla 2×4 / 4×2
   ya tenía el hueco).
 - **Cola de acciones.** Comer, snack, jugar, acariciar, limpiar, medicina y eclosionar pasan por

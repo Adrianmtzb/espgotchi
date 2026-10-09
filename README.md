@@ -94,10 +94,11 @@ El panel necesita offset de columna 34 e inversión de color activada. No hay t�
 
 | Gesto | Efecto |
 |---|---|
-| Pulsación corta | Abre el menú / avanza al siguiente icono (Feed, Snack, Play, Pet, Clean, Lights, Meds, Info). Con huevo: eclosiona. |
+| Pulsación corta | Abre el menú / avanza al siguiente icono (Feed, Snack, Play, Game en la S3, Pet, Clean, Lights, Meds, Info). Con huevo: eclosiona. |
 | Doble clic (menú cerrado) | Acaricia al pet (Pet) sin pasar por el menú. |
 | Pulsación larga (0,6 s) | Ejecuta el icono seleccionado. Sin menú abierto: muestra la página de info (IP, WiFi, stats). |
 | Mantener 6 s | Reinicia con un huevo nuevo (también si ha muerto). |
+| Game (solo S3, táctil) | Minijuego "Catch the ball": 20 s tocando la pelota que rebota por la habitación; cada acierto suma y la acelera. Al final, diversión +10 + puntos y energía −10. BOOT sale de la ronda. |
 
 ## Compilar y flashear
 

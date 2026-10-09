@@ -3,6 +3,7 @@
 // - Waveshare ESP32-S3-Touch-LCD-1.69: 240x280 ST7789V2, touch, buzzer, battery, BOOT button
 // - BOOT button: short press = cycle menu, long press = select, 6s hold = new egg
 // - Care actions from the menu, the CLI and the API queue behind the animation in progress
+// - Touch boards get a "Catch the ball" mini-game in the menu
 // - WiFi + HTTP JSON API (http://espgotchi.local) for the companion app
 // The board is picked at compile time from the target (see config.h and boards/).
 #include <Arduino.h>
@@ -52,11 +53,92 @@ static bool btnResetFired = false;
 
 static void actionFeedback(bool ok, Tune okTune = TUNE_OK);  // Arduino's auto-prototype skips functions with default args
 static void requestFeedback(ReqResult r);
+static void ledFlash(uint8_t r, uint8_t g, uint8_t b, uint16_t ms);
+
+// ---------- Catch the ball (touch boards) ----------
+// A 20 s round: the ball bounces around the room, every tap on it scores and speeds it up, the
+// pet hops on each catch. The score card stays for 2 s, then the pet gets fun and loses energy.
+#if HAS_TOUCH
+static const uint32_t GAME_ROUND_MS = 20000, GAME_CARD_MS = 2000, GAME_HOP_MS = 400;
+static struct {
+  bool active = false, over = false;
+  uint32_t startMs = 0, lastMs = 0, hopUntil = 0;
+  float x = 0, y = 0, vx = 0, vy = 0;  // ball top-left and velocity in px/s
+  int16_t downX = 0, downY = 0;        // where the ball was when the finger landed (a tap reports on release)
+  bool fingerWasDown = false;
+  uint8_t score = 0;
+} game;
+
+static bool gameStart() {
+  if (pet.state().asleep) return false;
+  int16_t ax, ay, aw, ah;
+  ui.gameArena(ax, ay, aw, ah);
+  game = {};
+  game.active = true;
+  game.startMs = game.lastMs = millis();
+  game.x = ax + aw / 2.0f; game.y = ay;
+  game.vx = (esp_random() & 1) ? 90.0f : -90.0f; game.vy = 70.0f;
+  hwTune(TUNE_PLAY);
+  return true;
+}
+
+static void gameFinish() {
+  game.over = true;
+  game.startMs = millis();  // reused as the card's start
+  pet.playGame(game.score);
+  pet.save(net.epoch(), true);
+  hwTune(TUNE_OK);
+}
+
+static void gameTap(int16_t x, int16_t y) {
+  const int16_t slack = 10;  // a finger is not a pixel
+  if (x < game.downX - slack || x > game.downX + GAME_BALL_PX + slack || y < game.downY - slack || y > game.downY + GAME_BALL_PX + slack) return;
+  if (game.score < 255) game.score++;
+  game.vx *= 1.12f; game.vy *= 1.12f;
+  if (esp_random() & 1) game.vx = -game.vx;  // the catch knocks the ball away
+  game.hopUntil = millis() + GAME_HOP_MS;
+  hwTune(TUNE_TICK);
+  ledFlash(255, 255, 255, 120);
+}
+
+static void gameLoop() {
+  if (!game.active) return;
+  uint32_t now = millis();
+  if (game.over) { if (now - game.startMs >= GAME_CARD_MS) game.active = false; return; }
+  if (now - game.startMs >= GAME_ROUND_MS) { gameFinish(); return; }
+  if (touch.down() && !game.fingerWasDown) { game.downX = (int16_t)game.x; game.downY = (int16_t)game.y; }
+  game.fingerWasDown = touch.down();
+  float dt = (now - game.lastMs) / 1000.0f;
+  game.lastMs = now;
+  int16_t ax, ay, aw, ah;
+  ui.gameArena(ax, ay, aw, ah);
+  game.x += game.vx * dt; game.y += game.vy * dt;
+  if (game.x < ax) { game.x = ax; game.vx = fabsf(game.vx); }
+  else if (game.x > ax + aw) { game.x = ax + aw; game.vx = -fabsf(game.vx); }
+  if (game.y < ay) { game.y = ay; game.vy = fabsf(game.vy); }
+  else if (game.y > ay + ah) { game.y = ay + ah; game.vy = -fabsf(game.vy); }
+}
+
+static GameView gameView() {
+  GameView v;
+  v.ballX = (int16_t)game.x; v.ballY = (int16_t)game.y;
+  v.score = game.score;
+  uint32_t left = game.over ? 0 : GAME_ROUND_MS - (millis() - game.startMs);
+  v.secondsLeft = (uint8_t)((left + 999) / 1000);
+  v.over = game.over;
+  v.hop = millis() < game.hopUntil;
+  return v;
+}
+#endif
+
 static void runMenuAction(int8_t item) {
   switch (item) {
     case MENU_FEED: requestFeedback(pet.request(ACT_FEED)); break;
     case MENU_SNACK: requestFeedback(pet.request(ACT_SNACK)); break;
     case MENU_PLAY: requestFeedback(pet.request(ACT_PLAY)); break;
+#if HAS_TOUCH
+    case MENU_GAME: if (!gameStart()) actionFeedback(false); break;
+#endif
     case MENU_PET: requestFeedback(pet.request(ACT_PET)); break;
     case MENU_CLEAN: requestFeedback(pet.request(ACT_CLEAN)); break;
     case MENU_SLEEP: actionFeedback(pet.toggleLights()); break;  // tune comes from the lightsOff change in loop
@@ -92,6 +174,9 @@ static void requestFeedback(ReqResult r) {
 static uint32_t pendingClickMs = 0;
 
 static void onShortPress() {
+#if HAS_TOUCH
+  if (game.active) { game.active = false; return; }  // BOOT leaves the game, finished or not
+#endif
   if (infoUntilMs) { infoUntilMs = 0; return; }
   if (pet.state().dead) return;
   if (pet.state().stage == STAGE_EGG) { actionFeedback(pet.hatch()); return; }
@@ -119,6 +204,9 @@ static void openMenuIfClickExpired() {
 }
 
 static void onLongPress() {
+#if HAS_TOUCH
+  if (game.active) { game.active = false; return; }
+#endif
   if (infoUntilMs) { infoUntilMs = 0; return; }
   if (pet.state().dead) return;
   if (menuSel >= 0) {
@@ -175,6 +263,14 @@ static void pollTouch() {
     if (++tcalIdx >= (int8_t)TCAL_N) { tcalIdx = -1; Serial.println("[tcal] done"); }
     return;
   }
+#if HAS_TOUCH
+  if (game.active) {  // the round owns the screen: taps go to the ball, the card closes on a tap
+    if (e.kind != TouchEvent::TAP) return;
+    if (game.over) game.active = false;
+    else gameTap(e.x, e.y);
+    return;
+  }
+#endif
   ledFlash(90, 90, 120, 80);
   switch (e.kind) {
     case TouchEvent::TAP:
@@ -352,6 +448,9 @@ void loop() {
   pollTouch();
   pollPowerKey();
   pollSerial();
+#if HAS_TOUCH
+  gameLoop();
+#endif
 
   if (now - lastTickMs >= 1000) {
     lastTickMs = now;
@@ -425,7 +524,11 @@ void loop() {
   if (menuSel >= 0 && (int32_t)(millis() - menuShownMs) > (int32_t)MENU_TIMEOUT_MS) menuSel = -1;
   if (infoUntilMs && now > infoUntilMs) infoUntilMs = 0;
 
-  if (now - lastRenderMs >= 100) {
+  uint32_t renderEveryMs = 100;
+#if HAS_TOUCH
+  if (game.active) renderEveryMs = 33;  // the ball needs more than 10 fps to look like it rolls
+#endif
+  if (now - lastRenderMs >= renderEveryMs) {
     lastRenderMs = now;
     bool night = isNight() || pet.state().lightsOff;
     bool dim = night && (pet.state().lightsOff || net.nightDim);
@@ -435,6 +538,9 @@ void loop() {
     ui.setBacklight(bl);
     if (millis() < cornerTestUntil) ui.cornerTest();
     else if (tcalIdx >= 0) { int16_t tx, ty; tcalTarget(tx, ty); ui.crosshair(tx, ty, tcalIdx, TCAL_N); }
+#if HAS_TOUCH
+    else if (game.active) ui.renderGame(pet, gameView(), night);
+#endif
     else ui.render(pet, net.info(), menuSel, infoUntilMs != 0, night);
     updateLed();
   }
