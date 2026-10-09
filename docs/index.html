@@ -603,7 +603,7 @@ footer p{margin:0;max-width:70ch}
       <div class="card">
         <h3 lang="es">Gestos de BOOT</h3><h3 lang="en">BOOT gestures</h3>
         <dl class="gest" style="margin-top:.9rem">
-          <dt lang="es">clic</dt><dt lang="en">click</dt><dd lang="es">Abre el menú y avanza por sus siete iconos. Con huevo: eclosiona.</dd><dd lang="en">Opens the menu and steps through its seven icons. With an egg: hatches it.</dd>
+          <dt lang="es">clic</dt><dt lang="en">click</dt><dd lang="es">Abre el menú y avanza por sus ocho iconos. Con huevo: eclosiona.</dd><dd lang="en">Opens the menu and steps through its eight icons. With an egg: hatches it.</dd>
           <dt lang="es">doble clic</dt><dt lang="en">double click</dt><dd lang="es">Acaricia al pet sin pasar por el menú.</dd><dd lang="en">Pets the creature without going through the menu.</dd>
           <dt>0.6 s</dt><dd lang="es">Ejecuta el icono seleccionado. Sin menú: página de info con IP, WiFi y versión.</dd><dd lang="en">Runs the selected icon. With no menu open: info page with IP, WiFi and version.</dd>
           <dt>6 s</dt><dd lang="es">Huevo nuevo. También es la salida cuando ha muerto.</dd><dd lang="en">New egg. Also the way out once it has died.</dd>
@@ -948,7 +948,7 @@ function act(type) { if (pet.stage === 'egg') { hatch(); return; } if (pet.healt
 function hatch() { pet.stage = 'baby'; pet.age = 0; startAnim('hatch'); ledRainbowUntil = performance.now() + 4000; ok('¡Ha eclosionado!', 'It hatched!'); }
 
 let menuSel = -1, menuAt = 0, pendingClick = 0, downAt = 0, longFired = false;
-const MENU = ['feed', 'play', 'pet', 'clean', 'lights', 'medicine', 'info'];
+const MENU = ['feed', 'snack', 'play', 'pet', 'clean', 'lights', 'medicine', 'info'];
 const bootBtn = document.getElementById('boot');
 const press = () => { downAt = performance.now(); longFired = false; flash(true); };
 const release = () => {
@@ -1084,8 +1084,8 @@ function draw(now) {
   if (menuSel >= 0) {
     if (now - menuAt > 6000) menuSel = -1;
     else {
-      const icons = ['meal_burger', 'ball', 'heart', 'icon_clean', 'icon_sleep', 'icon_meds', 'icon_info'];
-      for (let i = 0; i < 7; i++) { const cx = 218 + (i % 2) * 42, cy = 4 + Math.floor(i / 2) * 42; rr(cx, cy, 40, 40, 10, i === menuSel ? t.accent : 'rgba(128,128,160,.3)'); drawSprite(ctx, icons[i], cx + 4, cy + 4, 2); }
+      const icons = ['meal_burger', 'snack_cookie', 'ball', 'heart', 'icon_clean', 'icon_sleep', 'icon_meds', 'icon_info'];
+      for (let i = 0; i < MENU.length; i++) { const cx = 218 + (i % 2) * 42, cy = 4 + Math.floor(i / 2) * 42; rr(cx, cy, 40, 40, 10, i === menuSel ? t.accent : 'rgba(128,128,160,.3)'); drawSprite(ctx, icons[i], cx + 4, cy + 4, 2); }
       ctx.fillStyle = fg; ctx.font = 'bold 13px system-ui'; ctx.fillText(MENU[menuSel], 18, floorY + 15);
       ctx.font = '9px system-ui'; ctx.fillText('hold BOOT to select', rx + rw - 96, floorY + 10);
     }

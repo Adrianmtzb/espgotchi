@@ -126,11 +126,21 @@ function refusalReason(action, pet) {
 }
 
 async function doAction(action, extra = {}) {
-  const data = await request("/api/action", { method: "POST", body: { type: action, ...extra } });
+  let data;
+  try {
+    data = await request("/api/action", { method: "POST", body: { type: action, ...extra } });
+  } catch (e) {
+    if (/429/.test(String(e.message))) {
+      return { applied: false, queued: false, action, reason: "The board is busy and its action queue is full. Wait a few seconds and try again." };
+    }
+    throw e;
+  }
   const pet = data.pet;
   const applied = Boolean(data.applied);
-  const result = { applied, action, pet, advice: adviceFor(pet) };
-  if (!applied) result.reason = refusalReason(action, pet);
+  const queued = Boolean(data.queued);
+  const result = { applied, queued, action, pet, advice: adviceFor(pet) };
+  if (queued) result.reason = `Queued at position ${data.position}: an animation is playing, it runs when the screen is free (about ${Math.ceil((pet.busyMs || 0) / 1000) + data.position} s). Check get_events to see whether it was applied.`;
+  else if (!applied) result.reason = refusalReason(action, pet);
   return result;
 }
 
@@ -255,7 +265,7 @@ const simpleActions = [
 for (const [name, title, description] of simpleActions) {
   server.registerTool(name, {
     title,
-    description: `${description} Returns whether it was applied, the reason if not, and the new state.`,
+    description: `${description} Returns whether it was applied, the reason if not, and the new state. While an animation plays the action is queued (up to ${4} deep) and \`queued\` is true; the board answers busy when the queue is full.`,
     inputSchema: {},
     annotations: careAction,
   }, guarded(async () => json(await doAction(name))));

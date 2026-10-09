@@ -385,9 +385,9 @@ $('actions').addEventListener('click', async (ev) => {
   try {
     const r = await api('/api/action', { type });
     if (r.applied) { lastAction = type; lastActionAt = Date.now(); }
-    toast(r.applied ? `${b.textContent.trim()} ✓` : `${b.textContent.trim()}: not right now`);
+    toast(r.queued ? `${b.textContent.trim()}: queued (#${r.position})` : r.applied ? `${b.textContent.trim()} ✓` : `${b.textContent.trim()}: not right now`);
     state.pet = r.pet; render(r.pet); api('/api/events').then(e => renderLog(e.events));
-  } catch { toast('Device did not answer'); }
+  } catch (e) { toast(e.message === '429' ? 'Busy: the queue is full, wait a moment' : 'Device did not answer'); }
 });
 $('f-name').addEventListener('submit', async (ev) => { ev.preventDefault(); const r = await api('/api/name', { name: $('i-name').value.trim() }); render(r.pet); toast('Renamed'); });
 // Common zones as POSIX TZ strings (what the firmware's clock understands); "Custom" reveals the raw field.

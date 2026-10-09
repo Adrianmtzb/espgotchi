@@ -28,7 +28,7 @@ Dos placas soportadas. El sketch elige el pinout por el target del compilador
 |---|---|---|
 | Pantalla | ST7789 172×320, horizontal por defecto | ST7789V2 240×280, esquinas redondeadas |
 | Entrada | botón BOOT | botón BOOT + táctil CST816 (tap, swipe, pulsación larga) |
-| Feedback | LED WS2812 según el humor | zumbador (tic al aceptar, zumbido grave al rechazar, arpegio al evolucionar) |
+| Feedback | LED WS2812 según el humor | zumbador (tic al aceptar, zumbido grave al rechazar, arpegio al evolucionar, plop al hacer popó) |
 | Extras | — | batería con indicador en pantalla y API, botón PWR para apagar |
 | Ficha | [BOARD.md](BOARD.md) | [BOARD-S3-TOUCH-1.69.md](BOARD-S3-TOUCH-1.69.md) |
 
@@ -93,7 +93,7 @@ El panel necesita offset de columna 34 e inversión de color activada. No hay t�
 
 | Gesto | Efecto |
 |---|---|
-| Pulsación corta | Abre el menú / avanza al siguiente icono (Feed, Play, Pet, Clean, Lights, Meds, Info). Con huevo: eclosiona. |
+| Pulsación corta | Abre el menú / avanza al siguiente icono (Feed, Snack, Play, Pet, Clean, Lights, Meds, Info). Con huevo: eclosiona. |
 | Doble clic (menú cerrado) | Acaricia al pet (Pet) sin pasar por el menú. |
 | Pulsación larga (0,6 s) | Ejecuta el icono seleccionado. Sin menú abierto: muestra la página de info (IP, WiFi, stats). |
 | Mantener 6 s | Reinicia con un huevo nuevo (también si ha muerto). |

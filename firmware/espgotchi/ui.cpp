@@ -355,8 +355,8 @@ void Ui::drawStats(const Pet &pet) {
 }
 
 void Ui::drawMenu(int8_t sel) {
-  const Sprite *icons[MENU_COUNT] = {&SPR_MEAL_BURGER, &SPR_BALL, &SPR_HEART, &SPR_ICON_CLEAN, &SPR_ICON_SLEEP, &SPR_ICON_MEDS, &SPR_ICON_INFO};
-  const char *labels[MENU_COUNT] = {"Feed", "Play", "Pet", "Clean", "Lights", "Medicine", "Info"};
+  const Sprite *icons[MENU_COUNT] = {&SPR_MEAL_BURGER, &SPR_SNACK_COOKIE, &SPR_BALL, &SPR_HEART, &SPR_ICON_CLEAN, &SPR_ICON_SLEEP, &SPR_ICON_MEDS, &SPR_ICON_INFO};
+  const char *labels[MENU_COUNT] = {"Feed", "Snack", "Play", "Pet", "Clean", "Lights", "Medicine", "Info"};
   int16_t cols, x0, y0;
   menuGrid(cols, x0, y0);
   const int16_t cell = MENU_CELL, gap = MENU_GAP;
@@ -383,7 +383,7 @@ void Ui::drawMenu(int8_t sel) {
   }
 }
 
-// 7 items: 2x4 grid over the stats panel (landscape) or 4x2 under the room (portrait)
+// 8 items: 2x4 grid over the stats panel (landscape) or 4x2 under the room (portrait)
 void Ui::menuGrid(int16_t &cols, int16_t &x0, int16_t &y0) const {
   cols = portrait ? 4 : 2;
   x0 = portrait ? (W - (cols * MENU_CELL + (cols - 1) * MENU_GAP)) / 2 : panelX;

@@ -84,6 +84,15 @@ bool Pet::hatch() {
   return true;
 }
 
+bool Pet::mess() {
+  if (s.dead || s.stage == STAGE_EGG || s.poops >= 3) return false;
+  s.poops++;
+  s.secSinceMeal = 0;
+  dirty = true;
+  logEvent("Uh oh, %s made a mess", s.name);
+  return true;
+}
+
 bool Pet::feed(bool snack) {
   if (s.dead || s.stage == STAGE_EGG || s.asleep) return false;
   if (!snack && s.hunger >= 95) {
@@ -242,11 +251,7 @@ void Pet::simulateSecond() {
     if ((r % 180) == 0) s.hygiene -= 1;
     if (s.poops > 0 && (r % 60) == 0) s.hygiene -= 1;
     // poop appears some minutes after a meal
-    if (s.secSinceMeal > 600 && s.poops < 3 && (r % 900) == 0) {
-      s.poops++;
-      s.secSinceMeal = 0;
-      logEvent("Uh oh, %s made a mess", s.name);
-    }
+    if (s.secSinceMeal > 600 && s.poops < 3 && (r % 900) == 0) mess();
     if (s.energy <= 10) {
       s.asleep = true;
       logEvent("%s fell asleep exhausted", s.name);
@@ -278,6 +283,42 @@ void Pet::simulateSecond() {
   dirty = true;
 }
 
+static const char *ACTION_NAMES[ACT_COUNT] = {"feed", "snack", "play", "pet", "clean", "medicine", "hatch"};
+const char *Pet::actionName(PetAction a) { return a < ACT_COUNT ? ACTION_NAMES[a] : "?"; }
+int8_t Pet::actionFromKey(const char *key) {
+  if (!key) return -1;
+  for (uint8_t i = 0; i < ACT_COUNT; i++) if (!strcmp(key, ACTION_NAMES[i])) return i;
+  return -1;
+}
+
+bool Pet::runAction(PetAction a) {
+  switch (a) {
+    case ACT_FEED: return feed(false);
+    case ACT_SNACK: return feed(true);
+    case ACT_PLAY: return play();
+    case ACT_PET: return pet();
+    case ACT_CLEAN: return clean();
+    case ACT_MEDICINE: return medicine();
+    case ACT_HATCH: return hatch();
+    default: return false;
+  }
+}
+
+ReqResult Pet::request(PetAction a) {
+  if (a >= ACT_COUNT) return REQ_REFUSED;
+  if (!busy() && !qCount) return runAction(a) ? REQ_APPLIED : REQ_REFUSED;
+  if (qCount >= PET_QUEUE_MAX) return REQ_FULL;
+  queue[(qHead + qCount) % PET_QUEUE_MAX] = a;
+  qCount++;
+  return REQ_QUEUED;
+}
+
+uint32_t Pet::busyMs() const {
+  if (animCur == ANIM_NONE) return 0;
+  int32_t left = (int32_t)(animUntil - millis());
+  return left > 0 ? (uint32_t)left : 0;
+}
+
 void Pet::tick(uint32_t nowEpoch) {
   simulateSecond();
   if (animCur != ANIM_NONE) {
@@ -286,6 +327,13 @@ void Pet::tick(uint32_t nowEpoch) {
     } else {
       animStep++;
     }
+  }
+  if (animCur == ANIM_NONE && qCount) {  // next queued action, one per tick so each gets its full animation
+    PetAction a = (PetAction)queue[qHead];
+    qHead = (qHead + 1) % PET_QUEUE_MAX;
+    qCount--;
+    if (!runAction(a)) logEvent("Queued %s was refused", actionName(a));
+    dirty = true;
   }
   if (nowEpoch) s.lastEpoch = nowEpoch;
   save(nowEpoch);
@@ -405,6 +453,9 @@ void Pet::toJson(JsonObject o) const {
   const char *animNames[] = {"none", "eat", "snack", "play", "pet", "clean", "heal", "hatch"};
   o["anim"] = animNames[animCur];
   if (animCur == ANIM_EAT || animCur == ANIM_SNACK) o["animItem"] = animItemName();
+  o["busy"] = busy();
+  o["busyMs"] = busyMs();
+  o["queued"] = qCount;
 }
 
 void Pet::eventsToJson(JsonArray a) const {

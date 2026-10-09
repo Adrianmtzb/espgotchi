@@ -80,6 +80,7 @@ TUNE(T_JINGLE, 90, 1047, 1319, 1568, 2093);                   // C6 E6 G6 C7: ha
 TUNE(T_BOOT, 70, 523, 659, 784, 0, 1047);                     // power on: C E G, rest, high C
 TUNE(T_SAD, 220, 392, 349, 311, 262);                         // death
 TUNE(T_POWEROFF, 120, 784, 523, 392);                         // shutting down
+TUNE(T_POOP, 70, 196, 165, 0, 131, 110, 98);                  // a sliding, embarrassed plop
 #undef TUNE
 #define PLAY(name) do { seq = name; seqLen = name##_LEN; seqPos = 1; seqStep = name##_STEP; toneNow(name[0], seqStep); } while (0)
 #endif
@@ -104,6 +105,7 @@ void hwTune(Tune t) {
     case TUNE_BOOT: PLAY(T_BOOT); break;
     case TUNE_SAD: PLAY(T_SAD); break;
     case TUNE_POWEROFF: PLAY(T_POWEROFF); break;
+    case TUNE_POOP: PLAY(T_POOP); break;
   }
 #else
   (void)t;

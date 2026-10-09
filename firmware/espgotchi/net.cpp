@@ -339,22 +339,32 @@ void Net::setupRoutes() {
     JsonDocument body;
     if (!readBody(body) || body["type"].isNull()) return sendError("expected JSON {\"type\": ...}");
     const char *type = body["type"];
-    bool ok = false;
+    bool ok = false, queued = false;
     Pet *p = self->pet;
-    if (!strcmp(type, "feed")) ok = p->feed(false);
-    else if (!strcmp(type, "snack")) ok = p->feed(true);
-    else if (!strcmp(type, "play")) ok = p->play();
-    else if (!strcmp(type, "pet")) ok = p->pet();
-    else if (!strcmp(type, "clean")) ok = p->clean();
+    int8_t act = Pet::actionFromKey(type);
+    if (act >= 0) {
+      // Animated actions queue behind the one on screen instead of cutting it short.
+      ReqResult r = p->request((PetAction)act);
+      if (r == REQ_FULL) {
+        JsonDocument doc;
+        doc["ok"] = false;
+        doc["error"] = "busy";
+        doc["busyMs"] = p->busyMs();
+        doc["queued"] = p->queued();
+        return sendJson(doc, 429);
+      }
+      ok = r == REQ_APPLIED;
+      queued = r == REQ_QUEUED;
+    }
     else if (!strcmp(type, "sleep") || !strcmp(type, "lights")) ok = p->toggleLights();
-    else if (!strcmp(type, "medicine")) ok = p->medicine();
-    else if (!strcmp(type, "hatch")) ok = p->hatch();
     else if (!strcmp(type, "reset")) { p->reset(Pet::speciesFromKey(body["species"] | (const char *)nullptr)); ok = true; }
     else return sendError("unknown action type");
     p->save(self->epoch(), true);
     JsonDocument doc;
     doc["ok"] = true;
     doc["applied"] = ok;
+    doc["queued"] = queued;
+    if (queued) doc["position"] = p->queued();
     p->toJson(doc["pet"].to<JsonObject>());
     sendJson(doc);
   });

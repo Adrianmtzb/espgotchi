@@ -7,6 +7,15 @@ Este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
 
 ### Añadido
 
+- **Snack en el menú del dispositivo**, entre Feed y Play (ocho iconos; la rejilla 2×4 / 4×2
+  ya tenía el hueco).
+- **Cola de acciones.** Comer, snack, jugar, acariciar, limpiar, medicina y eclosionar pasan por
+  `Pet::request()`: si hay una animación en pantalla la acción se encola (hasta cuatro) y arranca
+  cuando termina, en vez de cortar la anterior. Aplica al menú, a la consola y a `POST /api/action`,
+  que devuelve `queued` y `position`, y responde `429 busy` con la cola llena. `/api/state` expone
+  `busy`, `busyMs` y `queued`; la web y el MCP lo muestran. En la placa, una acción encolada suena
+  con el tick y parpadea en ámbar.
+
 - Tres especies nuevas, la **edición Cute**: **Mimi** (`mimi`, gatita blanca con lazo rojo y
   vestido rosa), **Momo** (`momo`, conejita crema con una flor en la oreja) y **Pingo** (`pingo`,
   pingüino con bufanda a rayas). Línea de evolución completa, tres formas adultas y frames dormidos
@@ -22,6 +31,8 @@ Este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
   consola (`host <nombre>`), para que dos placas convivan en la misma red. Por defecto sigue
   siendo `espgotchi.local`.
 - Ajuste `nightDim` (web, API) para desactivar la atenuación automática de 22:00 a 07:00.
+- Sonido de popó en placas con zumbador: un plop descendente cuando aparece una caca nueva (no
+  suena si el pet duerme).
 - Sonidos por acción en placas con zumbador: comer, snack, jugar, mimar, limpiar, dormir y
   despertar, medicina, info, tic de menú, rechazo, nacimiento o evolución y muerte. Se generan
   desde el estado del pet, así que suenan igual venga la orden del botón, el táctil, la web o el MCP.

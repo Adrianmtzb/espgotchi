@@ -2,7 +2,7 @@
 #include <Arduino.h>
 #include "pet.h"
 
-enum MenuItem : uint8_t { MENU_FEED = 0, MENU_PLAY, MENU_PET, MENU_CLEAN, MENU_SLEEP, MENU_MEDS, MENU_INFO, MENU_COUNT };
+enum MenuItem : uint8_t { MENU_FEED = 0, MENU_SNACK, MENU_PLAY, MENU_PET, MENU_CLEAN, MENU_SLEEP, MENU_MEDS, MENU_INFO, MENU_COUNT };
 
 struct NetInfo {
   bool connected;

@@ -2,6 +2,7 @@
 // - Waveshare ESP32-C6-LCD-1.47: 172x320 ST7789, BOOT button, WS2812 mood LED
 // - Waveshare ESP32-S3-Touch-LCD-1.69: 240x280 ST7789V2, touch, buzzer, battery, BOOT button
 // - BOOT button: short press = cycle menu, long press = select, 6s hold = new egg
+// - Care actions from the menu, the CLI and the API queue behind the animation in progress
 // - WiFi + HTTP JSON API (http://espgotchi.local) for the companion app
 // The board is picked at compile time from the target (see config.h and boards/).
 #include <Arduino.h>
@@ -23,6 +24,7 @@ static uint8_t lastSeenStage = STAGE_COUNT;
 static PetAnim lastSeenAnim = ANIM_NONE;
 static uint8_t lastSeenAnimFrame = 0;
 static bool lastSeenLightsOff = false, lastSeenDead = false;
+static uint8_t lastSeenPoops = 0;
 static uint32_t menuShownMs = 0;
 static uint32_t infoUntilMs = 0;
 static uint32_t lastTickMs = 0;
@@ -46,14 +48,16 @@ static bool btnLongFired = false;
 static bool btnResetFired = false;
 
 static void actionFeedback(bool ok, Tune okTune = TUNE_OK);  // Arduino's auto-prototype skips functions with default args
+static void requestFeedback(ReqResult r);
 static void runMenuAction(int8_t item) {
   switch (item) {
-    case MENU_FEED: actionFeedback(pet.feed(false)); break;
-    case MENU_PLAY: actionFeedback(pet.play()); break;
-    case MENU_PET: actionFeedback(pet.pet()); break;
-    case MENU_CLEAN: actionFeedback(pet.clean()); break;
+    case MENU_FEED: requestFeedback(pet.request(ACT_FEED)); break;
+    case MENU_SNACK: requestFeedback(pet.request(ACT_SNACK)); break;
+    case MENU_PLAY: requestFeedback(pet.request(ACT_PLAY)); break;
+    case MENU_PET: requestFeedback(pet.request(ACT_PET)); break;
+    case MENU_CLEAN: requestFeedback(pet.request(ACT_CLEAN)); break;
     case MENU_SLEEP: actionFeedback(pet.toggleLights()); break;  // tune comes from the lightsOff change in loop
-    case MENU_MEDS: actionFeedback(pet.medicine()); break;
+    case MENU_MEDS: requestFeedback(pet.request(ACT_MEDICINE)); break;
     case MENU_INFO: infoUntilMs = millis() + INFO_TIMEOUT_MS; hwTune(TUNE_INFO); break;
   }
   pet.save(net.epoch(), true);
@@ -73,6 +77,11 @@ static void ledCelebrate(uint16_t ms) { ledRainbowUntil = millis() + ms; hwJingl
 static void actionFeedback(bool ok, Tune okTune) {
   if (ok) { ledFlash(255, 255, 255, 180); if (okTune != TUNE_OK) hwTune(okTune); }  // crisp white blink: done
   else { ledFlash(255, 0, 0, 350); hwTune(TUNE_NO); }                                // red / low grumble: refused
+}
+// Queued: a short tick and an amber blink, it will run when the current animation ends.
+static void requestFeedback(ReqResult r) {
+  if (r == REQ_QUEUED) { ledFlash(255, 160, 0, 180); hwTune(TUNE_TICK); }
+  else actionFeedback(r == REQ_APPLIED);
 }
 
 // Double-click on BOOT (menu closed) = pet the creature; a single click waits
@@ -239,7 +248,7 @@ static void handleSerialLine(String line) {
   rest.trim();
   cmd.toLowerCase();
   if (cmd == "help") {
-    Serial.println("commands: status | wifi <ssid> <pass> | forget | name <name> | tz <posix-tz> | host <name> | feed | snack | play | pet | clean | sleep | med | bl [0-255] | shot | press | hold | tp | tcal | gpio <n> | corners | boot | hatch | reset [kawaii|alien|dino|edge|ghost|pumpkin|mimi|momo|pingo] | reboot");
+    Serial.println("commands: status | wifi <ssid> <pass> | forget | name <name> | tz <posix-tz> | host <name> | feed | snack | play | pet | clean | sleep | med | poop | bl [0-255] | shot | press | hold | tp | tcal | gpio <n> | corners | boot | hatch | reset [kawaii|alien|dino|edge|ghost|pumpkin|mimi|momo|pingo] | reboot");
   } else if (cmd == "status") {
     JsonDocument doc;
     pet.toJson(doc.to<JsonObject>());
@@ -270,14 +279,12 @@ static void handleSerialLine(String line) {
     if (net.setHostname(rest.c_str())) { Serial.printf("hostname %s.local saved, rebooting...\n", net.hostname().c_str()); delay(200); ESP.restart(); }
     else Serial.println("usage: host <1-24 chars of a-z 0-9 ->");
   }
-  else if (cmd == "feed") pet.feed(false);
-  else if (cmd == "snack") pet.feed(true);
-  else if (cmd == "play") pet.play();
-  else if (cmd == "pet") pet.pet();
-  else if (cmd == "clean") pet.clean();
+  else if (cmd == "feed" || cmd == "snack" || cmd == "play" || cmd == "pet" || cmd == "clean" || cmd == "med" || cmd == "hatch") {
+    static const char *names[] = {"applied", "refused", "queued", "busy, queue full"};
+    Serial.println(names[pet.request((PetAction)Pet::actionFromKey(cmd == "med" ? "medicine" : cmd.c_str()))]);
+  }
   else if (cmd == "sleep") pet.toggleLights();
-  else if (cmd == "med") pet.medicine();
-  else if (cmd == "hatch") pet.hatch();
+  else if (cmd == "poop") Serial.println(pet.mess() ? "plop" : "nothing to drop");
   else if (cmd == "reset") { pet.reset(Pet::speciesFromKey(rest.length() ? rest.c_str() : nullptr)); pet.save(net.epoch(), true); }
   else if (cmd == "shot") ui.dumpFramebuffer(Serial);
   else if (cmd == "press") onShortPress();   // simulate BOOT gestures from the CLI
@@ -323,6 +330,7 @@ void setup() {
   pet.begin();
   ui.bootAnimation(pet);
   lastSeenLightsOff = pet.state().lightsOff;
+  lastSeenPoops = pet.state().poops;
   lastSeenDead = pet.state().dead;
   lastSeenAnim = pet.anim();
   net.begin(&pet);
@@ -366,6 +374,10 @@ void loop() {
   } else if ((lastSeenAnim == ANIM_EAT || lastSeenAnim == ANIM_SNACK) && pet.animFrame() != lastSeenAnimFrame) {
     lastSeenAnimFrame = pet.animFrame();  // every chewing frame gets its own bite
     hwTune(lastSeenAnim == ANIM_EAT ? TUNE_FEED : TUNE_SNACK);
+  }
+  if (pet.state().poops != lastSeenPoops) {  // a new mess gets its own (rude) sound; cleaning is covered by TUNE_CLEAN
+    if (pet.state().poops > lastSeenPoops && !pet.state().asleep) hwTune(TUNE_POOP);
+    lastSeenPoops = pet.state().poops;
   }
   if (pet.state().lightsOff != lastSeenLightsOff) {
     lastSeenLightsOff = pet.state().lightsOff;

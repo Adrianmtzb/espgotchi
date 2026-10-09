@@ -5,6 +5,11 @@
 enum PetStage : uint8_t { STAGE_EGG = 0, STAGE_BABY, STAGE_CHILD, STAGE_TEEN, STAGE_ADULT, STAGE_ELDER, STAGE_COUNT };
 enum PetForm : uint8_t { FORM_NORMAL = 0, FORM_ELITE, FORM_FERAL };
 enum PetAnim : uint8_t { ANIM_NONE = 0, ANIM_EAT, ANIM_SNACK, ANIM_PLAY, ANIM_PET, ANIM_CLEAN, ANIM_HEAL, ANIM_HATCH };
+// Animated care actions. They go through Pet::request(), which runs them now or queues them
+// behind the animation in progress so two quick requests don't cut each other short.
+enum PetAction : uint8_t { ACT_FEED = 0, ACT_SNACK, ACT_PLAY, ACT_PET, ACT_CLEAN, ACT_MEDICINE, ACT_HATCH, ACT_COUNT };
+enum ReqResult : uint8_t { REQ_APPLIED, REQ_REFUSED, REQ_QUEUED, REQ_FULL };
+static const uint8_t PET_QUEUE_MAX = 4;
 
 struct PetState {
   uint32_t magic;
@@ -53,6 +58,15 @@ class Pet {
   bool toggleLights();
   bool medicine();
   bool hatch();
+  bool mess();  // force a poop (CLI, to test the sound and the attention state)
+  // Run `a` now, or queue it while an animation plays. The queue drains one action per tick
+  // once the screen is free; a refused queued action still logs why.
+  ReqResult request(PetAction a);
+  bool busy() const { return animCur != ANIM_NONE; }
+  uint32_t busyMs() const;             // time left on the current animation, 0 when idle
+  uint8_t queued() const { return qCount; }
+  static const char *actionName(PetAction a);
+  static int8_t actionFromKey(const char *key);  // "feed", "snack"... or -1
   void reset(int8_t species = -1);  // -1 = random
   void setName(const char *n);
 
@@ -79,6 +93,9 @@ class Pet {
   uint8_t animStep = 0;
   uint8_t animItemIdx = 0;
   uint32_t animUntil = 0;
+  uint8_t queue[PET_QUEUE_MAX] = {};
+  uint8_t qHead = 0, qCount = 0;
+  bool runAction(PetAction a);
   bool dirty = false;
   uint32_t lastSaveMs = 0;
   PetEvent events[16]{};
