@@ -33,6 +33,11 @@ Este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
   instalación y la lista de herramientas del MCP, enlazada desde la navegación. El idioma inicial
   sale del navegador (español si `navigator.language` empieza por `es`, inglés si no); el
   selector sigue mandando una vez usado.
+- Landing: SEO completo. `<title>` descriptivo, `rel="canonical"`, `theme-color` por esquema,
+  `robots` con `max-image-preview:large`, `og:locale` y alternativa, `og:image:type`, JSON-LD
+  `SoftwareSourceCode` (repo, licencia, autor, idiomas) sin versión para que no se desincronice
+  del manifest, y `docs/robots.txt` y `docs/sitemap.xml` (con la imagen social) copiados a
+  `_site/` por `make site` y el job `pages`.
 - Iconos del menú redibujados: la medicina es una cápsula en diagonal con el corte de color
   perpendicular a su eje, y limpiar es una barra de jabón rosa con letras en relieve y burbujas.
 - Indicador de cola en pantalla: mientras hay acciones esperando, junto a la píldora de etapa

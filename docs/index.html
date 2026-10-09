@@ -4,16 +4,24 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="dark light">
-<title>ESPgotchi</title>
+<title>ESPgotchi: a pixel pet that lives on a $15 ESP32 board</title>
+<link rel="canonical" href="https://adrianmtzb.github.io/espgotchi/">
+<meta name="theme-color" content="#0b0d16" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f6f4ee" media="(prefers-color-scheme: light)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<meta name="author" content="adrianmb">
 <!-- Search engines read this, not visitors: it cannot follow the language toggle,
      so it carries both languages on one line. -->
 <meta name="description" content="Open-source virtual pet for the Waveshare ESP32-C6-LCD-1.47 and ESP32-S3-Touch-LCD-1.69: ten pixel-art species (Halloween, Cute and Fantasy editions included), evolutions, a web panel served by the chip itself. Installs from your browser. — Mascota virtual libre para la Waveshare ESP32-C6-LCD-1.47 y la ESP32-S3-Touch-LCD-1.69: diez especies en pixel-art (con ediciones Halloween, Cute y Fantasy), evoluciones, web servida por el propio chip. Se instala desde el navegador.">
 <meta property="og:type" content="website">
+<meta property="og:locale" content="en_US">
+<meta property="og:locale:alternate" content="es_ES">
 <meta property="og:site_name" content="ESPgotchi">
 <meta property="og:title" content="ESPgotchi: a pixel pet that lives on a $15 ESP32 board">
 <meta property="og:description" content="Open-source virtual pet for two Waveshare ESP32 boards. Ten pixel-art species, evolutions, a web panel served by the chip itself. Installs from your browser.">
 <meta property="og:url" content="https://adrianmtzb.github.io/espgotchi/">
 <meta property="og:image" content="https://adrianmtzb.github.io/espgotchi/og.png">
+<meta property="og:image:type" content="image/png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="ESPgotchi title in pixel letters with the ten species lined up on their room colors">
@@ -21,6 +29,31 @@
 <meta name="twitter:title" content="ESPgotchi: a pixel pet that lives on a $15 ESP32 board">
 <meta name="twitter:description" content="Open-source virtual pet for two Waveshare ESP32 boards. Ten pixel-art species, a web panel served by the chip itself. Installs from your browser.">
 <meta name="twitter:image" content="https://adrianmtzb.github.io/espgotchi/og.png">
+<!-- Structured data for rich results. Version is deliberately absent: it lives in manifest.json
+     and a copy here would drift. -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareSourceCode",
+  "name": "ESPgotchi",
+  "url": "https://adrianmtzb.github.io/espgotchi/",
+  "codeRepository": "https://github.com/Adrianmtzb/espgotchi",
+  "programmingLanguage": ["C++", "JavaScript"],
+  "runtimePlatform": "Arduino (ESP32-C6, ESP32-S3)",
+  "license": "https://opensource.org/licenses/MIT",
+  "image": "https://adrianmtzb.github.io/espgotchi/og.png",
+  "description": "Open-source virtual pet for the Waveshare ESP32-C6-LCD-1.47 and ESP32-S3-Touch-LCD-1.69: ten pixel-art species, evolutions and a web panel served by the chip itself. Installs from the browser.",
+  "inLanguage": ["en", "es"],
+  "author": {"@type": "Person", "name": "adrianmb", "url": "https://adrianmb.dev/"},
+  "targetProduct": {
+    "@type": "SoftwareApplication",
+    "name": "ESPgotchi",
+    "applicationCategory": "GameApplication",
+    "operatingSystem": "ESP32 (Waveshare ESP32-C6-LCD-1.47, ESP32-S3-Touch-LCD-1.69)",
+    "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"}
+  }
+}
+</script>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'><rect width='16' height='16' rx='3' fill='%230b0d16'/><rect x='4' y='3' width='8' height='7' fill='%23ff5c8a'/><rect x='3' y='5' width='10' height='6' fill='%23ff5c8a'/><rect x='5' y='6' width='2' height='2' fill='%230b0d16'/><rect x='9' y='6' width='2' height='2' fill='%230b0d16'/><rect x='5' y='11' width='6' height='2' fill='%23ff5c8a'/></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

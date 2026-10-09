@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://adrianmtzb.github.io/espgotchi/sitemap.xml

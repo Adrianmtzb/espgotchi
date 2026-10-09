@@ -99,7 +99,7 @@ og: ## Render the landing page social card to _site/og.png (no dependencies)
 site: ## Build every board and assemble the web installer in _site/, same as CI
 	@for b in $(BOARDS); do $(MAKE) --no-print-directory build bootapp0 BOARD=$$b || exit 1; done
 	@rm -rf _site && mkdir -p _site
-	@cp docs/index.html docs/manifest.json _site/
+	@cp docs/index.html docs/manifest.json docs/robots.txt docs/sitemap.xml _site/
 	@cp shared/sprites.json _site/sprites.json
 	@node tools/gen_og.mjs _site/og.png
 	@for b in $(BOARDS); do \

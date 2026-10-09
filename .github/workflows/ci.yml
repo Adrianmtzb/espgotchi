@@ -133,7 +133,7 @@ jobs:
       - name: Assemble the site
         run: |
           mkdir -p _site
-          cp docs/index.html docs/manifest.json _site/
+          cp docs/index.html docs/manifest.json docs/robots.txt docs/sitemap.xml _site/
           cp shared/sprites.json _site/sprites.json
           node tools/gen_og.mjs _site/og.png
           for b in c6 s3; do
