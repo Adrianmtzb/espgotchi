@@ -54,4 +54,4 @@
 #define VISIT_INTERVAL_MS 300000UL  // how often to look for a neighbour
 #define VISIT_FIRST_MS 60000UL      // first look after the WiFi comes up
 #define VISIT_DURATION_MS 20000UL   // how long the friend stays in the room
-#define VISIT_HTTP_TIMEOUT_MS 400   // per fetch, so the loop never stalls for long
+#define VISIT_HTTP_TIMEOUT_MS 1500  // per fetch; a C6 needs ~300 ms to serve /api/state, 400 ms timed out on the LAN
