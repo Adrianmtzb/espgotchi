@@ -29,6 +29,8 @@ Este proyecto sigue [Versionado Semántico](https://semver.org/lang/es/).
   que devuelve `queued` y `position`, y responde `429 busy` con la cola llena. `/api/state` expone
   `busy`, `busyMs` y `queued`; la web y el MCP lo muestran. En la placa, una acción encolada suena
   con el tick y parpadea en ámbar.
+- Iconos del menú redibujados: la medicina es una cápsula en diagonal con el corte de color
+  perpendicular a su eje, y limpiar es una barra de jabón rosa con letras en relieve y burbujas.
 - Indicador de cola en pantalla: mientras hay acciones esperando, junto a la píldora de etapa
   aparece una píldora hueca `+N` del color de la especie (o una columna de puntos si no cabe).
 - `tools/check_consistency.mjs`, dentro de `make check` y del CI: compara el `enum MenuItem` del
